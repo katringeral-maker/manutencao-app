@@ -18,14 +18,20 @@ import {
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 
 // --- FIREBASE CONFIG (Injetada pelo ambiente) ---
-const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{apiKey: "AIzaSyAo6MPtHy6b-n0rKvZtuy_TCJPG8qye7oU",
+    authDomain: "manutencaoappcsm.firebaseapp.com",
+    projectId: "manutencaoappcsm",
+    storageBucket: "manutencaoappcsm.firebasestorage.app",
+    messagingSenderId: "109430393454",
+    appId: "1:109430393454:web:f2a56b08e2ff9ad755f47f",
+    measurementId: "G-KHGP1QLFF9"}');
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
 // --- CONFIGURAÇÃO GEMINI API ---
-const apiKey = ""; 
+const apiKey = "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE"; 
 
 async function callGeminiVision(base64Image, prompt) {
   if (!apiKey) { alert("API Key não configurada."); return null; }
