@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot } from 'react-dom/client'; // Importação movida para o topo (CORREÇÃO)
 import { 
   ClipboardCheck, Building2, MapPin, CheckCircle2, XCircle, Save, 
   LayoutDashboard, ChevronRight, ChevronDown, Droplets, Lightbulb, 
@@ -18,26 +18,25 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 
-// --- FIREBASE CONFIG (IMPORTANTE: MANTENHA AS SUAS CHAVES AQUI) ---
-// Se você já tinha colocado as suas chaves no passo anterior, mantenha-as!
-// Caso contrário, substitua os valores abaixo.
+// --- FIREBASE CONFIG ---
+// IMPORTANTE: Se você já tinha colocado as suas chaves antes, certifique-se de as colocar aqui novamente.
 const firebaseConfig = {
-  // COLE AQUI A SUA CONFIGURAÇÃO DO FIREBASE SE AINDA NÃO TIVER
+  // Se não tiver as chaves aqui, a app vai abrir mas não vai guardar dados.
+  // Exemplo: apiKey: "AIzaSy...",
 };
 
-// Se a firebaseConfig estiver vazia (porque apagou para testar), o app vai tentar usar a padrão.
-// O ideal é ter a sua configuração real aqui.
-const app = initializeApp(Object.keys(firebaseConfig).length ? firebaseConfig : { apiKey: "demo" }); 
+// Inicialização segura do Firebase
+const app = initializeApp(Object.keys(firebaseConfig).length ? firebaseConfig : { apiKey: "demo" });
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = 'default-app-id';
 
 // --- CONFIGURAÇÃO GEMINI API ---
-const apiKey = ""; // Cole a sua chave Gemini aqui se quiser usar a IA
+const apiKey = ""; 
 
 // --- FUNÇÕES AUXILIARES ---
 async function callGeminiVision(base64Image, prompt) {
-  if (!apiKey) { alert("API Key não configurada. A IA não vai funcionar."); return null; }
+  if (!apiKey) { alert("API Key não configurada."); return null; }
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -61,7 +60,7 @@ async function callGeminiText(prompt) {
   } catch (error) { return null; }
 }
 
-// --- DADOS ---
+// --- DADOS ESTÁTICOS ---
 const CHECKLIST_ITEMS = [
   { id: 'limpeza', label: 'Limpeza Geral / Lixo', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
   { id: 'vidros', label: 'Vidros e Fachadas', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
@@ -84,7 +83,7 @@ const CHECKLIST_ITEMS = [
 const BUILDINGS_DATA = [
   { id: 'pavilhao', name: 'Pavilhão Marítimo', floors: [ { id: 'p0', name: 'Piso 0', zones: ['Capela', 'Parque Estacionamento', 'Sintético C', 'W.C. Geral', 'Entrada Pavilhão', 'Entrada Sintético A', 'Secretaria'] }, { id: 'p1', name: 'Piso 1', zones: ['Piso Pavilhão (Campo)', 'Sala Ginástica', 'Balneários Árbitros', 'Balneários Andebol', 'Balneários Futsal', 'Balneários Visitantes', 'Gabinete Médico', 'Sala Muay Thai'] }, { id: 'p2', name: 'Piso 2', zones: ['Ginásio Principal', 'Sala Comunicação Social', 'Bancadas', 'Escadarias', 'WC Públicos'] }, { id: 'p3', name: 'Piso 3', zones: ['Tribuna Presidencial', 'Bilheteira', 'Área Técnica'] } ] },
   { id: 'futebol', name: 'Edifício do Futebol', floors: [ { id: 'fp-2', name: 'Piso -2', zones: ['Dep. Clínico', 'Gabinete Treinadores', 'Balneários Árbitros', 'Balneários Vermelhos', 'Balneários Verdes', 'Balneários Visitantes', 'Gabinete Médico'] }, { id: 'fp-1', name: 'Piso -1', zones: ['Sala de Vídeo', 'Sala de Reuniões', 'Ginásio Futebol', 'Rouparia'] }, { id: 'fp0', name: 'Piso 0', zones: ['Recepção', 'Gabinetes Administrativos', 'Zona de Acesso Principal'] } ] },
-  { id: 'estadio', name: 'Estádio', floors: [ { id: 'ep-2', name: 'Piso -2 (Nascente)', zones: ['Exterior', 'Parque Estacionamento', 'Portas Acesso (Torniquetes)'] }, { id: 'ep-1', name: 'Piso -1 (Nascente)', zones: ['Salas Técnicas', 'Sala de Arrumos', 'Zona de Cargas'] }, { id: 'ep0', name: 'Piso 0 (Poente)', zones: ['Balneário Feminino', 'Balneário Masculino', 'Sala de Imprensa'] }, { id: 'bancadas', name: 'Bancadas / Acessos', zones: ['Porta 1', 'Porta 2', 'Porta 3', 'Porta 4', 'Porta 5', 'Porta 6', 'Porta 7', 'Porta 8', 'Porta 10', 'Elevadores'] } ] },
+  { id: 'estadio', name: 'Estádio', floors: [ { id: 'ep-2', name: 'Piso -2 (Nascente)', zones: ['Exterior', 'Parque Estacionamento', 'Portas Acesso (Torniquetes)'] }, { id: 'ep-1', name: 'Piso -1 (Nascente)', zones: ['Salas Técnicas', 'Sala de Arrumos', 'Zona de Cargas'] }, { id: 'ep0', name: 'Piso 0', zones: ['Balneário Feminino', 'Balneário Masculino', 'Sala de Imprensa'] }, { id: 'bancadas', name: 'Bancadas / Acessos', zones: ['Porta 1', 'Porta 2', 'Porta 3', 'Porta 4', 'Porta 5', 'Porta 6', 'Porta 7', 'Porta 8', 'Porta 10', 'Elevadores'] } ] },
   { id: 'imaculada', name: 'C. Imaculada Conceição', floors: [ { id: 'imp-1', name: 'Piso -1', zones: ['Balneários Técnicos', 'Balneários Marítimo', 'Balneários Visitantes', 'Arrecadação', 'Corredor Acesso'] }, { id: 'imp0', name: 'Piso 0', zones: ['Departamento Clínico', 'Gabinete Treinadores', 'Balneários Árbitros', 'Balneários B', 'Sala Reuniões', 'Rouparia', 'Bar / Zona Social'] }, { id: 'imp1', name: 'Piso 1', zones: ['Bancada', 'W.C. Público', 'Camarotes/Imprensa'] } ] },
   { id: 'lar', name: 'Lar / Residência', floors: [ { id: 'lp0', name: 'Piso 0', zones: ['Sala de Convívio', 'Sala do Volante', 'Balneários', 'Quarto Serviço', 'Corredor'] }, { id: 'lp1', name: 'Piso 1', zones: ['Camarata 1', 'Camarata 2', 'Camarata 3', 'Varanda Exterior', 'Instalações Sanitárias'] }, { id: 'lp2', name: 'Piso 2', zones: ['Quartos Direção', 'Área Administrativa', 'Zona Técnica'] } ] }
 ];
@@ -268,60 +267,4 @@ function AdminApp({ onLogout, user }) {
         <aside className="w-80 bg-white border-r hidden md:block p-4 overflow-y-auto">
           <button onClick={() => setSelectedBuilding(null)} className="mb-4 text-sm text-gray-500 hover:text-emerald-600 flex items-center gap-1">&larr; Voltar</button>
           {selectedBuilding.floors.map(f => (
-            <div key={f.id} className="mb-2"><button onClick={() => setSelectedFloor(f.id === selectedFloor?.id ? null : f)} className={`w-full text-left px-3 py-2 rounded flex justify-between ${selectedFloor?.id === f.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50'}`}>{f.name} <ChevronDown className="w-4 h-4"/></button>
-              {selectedFloor?.id === f.id && <div className="ml-4 mt-2 border-l-2 pl-2 space-y-1">{f.zones.map(z => <button key={z} onClick={() => setSelectedZone(z)} className={`w-full text-left px-3 py-2 rounded text-sm ${selectedZone === z ? 'bg-emerald-100 text-emerald-800' : 'hover:bg-gray-50'}`}>{z}</button>)}</div>}
-            </div>
-          ))}
-        </aside>
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-8">
-          {!selectedZone ? <div className="flex flex-col items-center justify-center h-full text-gray-400"><MapPin className="w-16 h-16 mb-4" /><p>Selecione uma zona.</p></div> : (
-            <div className="max-w-4xl mx-auto space-y-6 pb-20">
-              <div className="bg-white p-6 rounded-xl shadow-sm border flex justify-between"><div><h1 className="text-2xl font-bold">{selectedZone}</h1><p className="text-sm text-gray-500">{selectedBuilding.name}</p></div></div>
-              <div className="bg-white rounded-xl shadow-sm border overflow-hidden divide-y">
-                {CHECKLIST_ITEMS.map((item) => {
-                  const key = getAuditKey(selectedBuilding.id, selectedZone, item.id);
-                  const data = auditData[key] || {};
-                  return (
-                    <div key={item.id} className="p-4 hover:bg-gray-50">
-                      <div className="flex justify-between items-center gap-4">
-                        <div className="flex items-center gap-3"><div className="p-2 bg-gray-100 rounded">{item.icon}</div><div><span className="font-medium block">{item.label}</span><span className="text-xs text-gray-400">{item.category}</span></div></div>
-                        <div className="flex items-center gap-2"><button onClick={() => handleCheck(item.id, 'ok')} className={`px-3 py-2 rounded border flex gap-2 ${data.status === 'ok' ? 'bg-emerald-500 text-white' : 'bg-white text-gray-400'}`}><CheckCircle2 className="w-5 h-5"/> OK</button><button onClick={() => handleCheck(item.id, 'nok')} className={`px-3 py-2 rounded border flex gap-2 ${data.status === 'nok' ? 'bg-red-500 text-white' : 'bg-white text-gray-400'}`}><XCircle className="w-5 h-5"/> Erro</button></div>
-                      </div>
-                      {data.status === 'nok' && (<div className="mt-4 pl-12 grid grid-cols-1 md:grid-cols-2 gap-4"><div className="col-span-2"><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Causas..." value={data.details?.causes || ''} onChange={(e) => handleDetailChange(item.id, 'causes', e.target.value)}/></div><div><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Medidas..." value={data.details?.measures || ''} onChange={(e) => handleDetailChange(item.id, 'measures', e.target.value)}/></div></div>)}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
-    );
-  };
-
-  const renderPlanning = () => {
-    return (
-      <div className="h-full flex flex-col md:flex-row bg-gray-50">
-        <div className="w-full md:w-1/3 bg-white border-r flex flex-col p-4 gap-4">
-           <div className="flex gap-2"><input type="text" className="flex-1 border rounded px-2 text-sm" placeholder="Nova tarefa..." value={newTaskInput} onChange={e => setNewTaskInput(e.target.value)} /><button onClick={() => {if(newTaskInput) {handleAddTaskToFirestore({ desc: newTaskInput, cat: 'Manual', date: new Date().toISOString().split('T')[0] }); setNewTaskInput('')}}} className="bg-emerald-600 text-white p-1 rounded"><Plus className="w-5 h-5"/></button></div>
-           <label className="w-full bg-blue-50 text-blue-600 border border-blue-200 p-2 rounded flex items-center justify-center gap-2 cursor-pointer hover:bg-blue-100 transition-colors text-sm font-medium"><input type="file" accept=".csv,.txt" className="hidden" onChange={handleFileImport} disabled={isImporting} />{isImporting ? <Loader2 className="w-4 h-4 animate-spin"/> : <UploadCloud className="w-4 h-4"/>} Importar Ficheiro</label>
-           <div className="flex-1 overflow-y-auto space-y-2">{planningTasks.map(t => (<div key={t.id} className="p-3 border rounded bg-white flex justify-between items-start"><div className="text-sm"><p className="font-medium">{t.desc}</p><span className="text-xs text-gray-400">{t.date}</span></div><button onClick={() => handleRemoveTask(t.id)}><X className="w-4 h-4 text-gray-400"/></button></div>))}</div>
-        </div>
-        <div className="flex-1 p-6 overflow-y-auto">
-          <h2 className="text-2xl font-bold mb-4">Planeamento</h2>
-          <div className="bg-white p-4 rounded shadow-sm border mb-4">
-             <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-xs font-bold text-gray-500 uppercase">Início</label><input type="datetime-local" className="border rounded p-2 w-full" value={planning.startDate || ''} onChange={e => updatePlanningMeta({ startDate: e.target.value })} /></div><div><label className="block text-xs font-bold text-gray-500 uppercase">Fim</label><input type="datetime-local" className="border rounded p-2 w-full" value={planning.endDate || ''} onChange={e => updatePlanningMeta({ endDate: e.target.value })} /></div></div>
-             <textarea className="border rounded p-2 w-full text-sm" rows={2} placeholder="Equipa / Notas..." value={planning.teamMembers || ''} onChange={e => updatePlanningMeta({ teamMembers: e.target.value })} />
-          </div>
-          <div className="bg-white p-6 rounded shadow space-y-2">
-            {planningTasks.map(t => (<div key={t.id} className={`p-4 border rounded flex items-center gap-3 ${t.completed ? 'bg-emerald-50' : 'bg-white'}`}><input type="checkbox" checked={t.completed} onChange={() => handleToggleTask(t.id, t.completed)} className="w-5 h-5" /><span className={t.completed ? 'line-through text-emerald-700' : ''}>{t.desc}</span></div>))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderReport = () => {
-    const completedTasks = planningTasks.filter(t => t.completed);
-    return (
-      <div className="max-w-5xl mx-auto
+            <div key={f.id} className="mb-2"><button
