@@ -210,11 +210,10 @@ function App() {
     onAuthStateChanged(auth, setUser);
   }, []);
 
-  if (!role) return <LoginScreen onRole={setRole} />;
+  if (!role) return <Login onRole={setRole} />;
   return role === 'admin' ? <AdminView onExit={()=>setRole(null)} user={user}/> : <WorkerView onExit={()=>setRole(null)} user={user}/>;
 }
 
-// === MONTAGEM ===
 const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container);
