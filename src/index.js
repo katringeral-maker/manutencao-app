@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { createRoot } from 'react-dom/client'; // Importação movida para o topo
+import { createRoot } from 'react-dom/client';
 import { 
   ClipboardCheck, Building2, MapPin, CheckCircle2, XCircle, Save, 
   LayoutDashboard, ChevronRight, ChevronDown, Droplets, Lightbulb, 
@@ -18,30 +18,28 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 
-// --- FIREBASE CONFIG ---
-// (Substitua pelos seus dados reais do Firebase se ainda não o fez)
+// --- FIREBASE CONFIG (IMPORTANTE: MANTENHA AS SUAS CHAVES AQUI) ---
+// Se você já tinha colocado as suas chaves no passo anterior, mantenha-as!
+// Caso contrário, substitua os valores abaixo.
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY_AQUI",
-  authDomain: "seu-projeto.firebaseapp.com",
-  projectId: "seu-id-projeto",
-  storageBucket: "seu-projeto.appspot.com",
-  messagingSenderId: "123456",
-  appId: "1:123456:web:abcdef"
+  // COLE AQUI A SUA CONFIGURAÇÃO DO FIREBASE SE AINDA NÃO TIVER
 };
 
-const app = initializeApp(firebaseConfig);
+// Se a firebaseConfig estiver vazia (porque apagou para testar), o app vai tentar usar a padrão.
+// O ideal é ter a sua configuração real aqui.
+const app = initializeApp(Object.keys(firebaseConfig).length ? firebaseConfig : { apiKey: "demo" }); 
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = 'default-app-id';
 
 // --- CONFIGURAÇÃO GEMINI API ---
-const apiKey = ""; 
+const apiKey = ""; // Cole a sua chave Gemini aqui se quiser usar a IA
 
 // --- FUNÇÕES AUXILIARES ---
 async function callGeminiVision(base64Image, prompt) {
-  if (!apiKey) { alert("API Key não configurada."); return null; }
+  if (!apiKey) { alert("API Key não configurada. A IA não vai funcionar."); return null; }
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: base64Image } }] }] })
     });
@@ -54,7 +52,7 @@ async function callGeminiVision(base64Image, prompt) {
 async function callGeminiText(prompt) {
   if (!apiKey) return null;
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
     });
@@ -63,7 +61,7 @@ async function callGeminiText(prompt) {
   } catch (error) { return null; }
 }
 
-// --- DADOS ESTÁTICOS ---
+// --- DADOS ---
 const CHECKLIST_ITEMS = [
   { id: 'limpeza', label: 'Limpeza Geral / Lixo', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
   { id: 'vidros', label: 'Vidros e Fachadas', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
@@ -91,9 +89,29 @@ const BUILDINGS_DATA = [
   { id: 'lar', name: 'Lar / Residência', floors: [ { id: 'lp0', name: 'Piso 0', zones: ['Sala de Convívio', 'Sala do Volante', 'Balneários', 'Quarto Serviço', 'Corredor'] }, { id: 'lp1', name: 'Piso 1', zones: ['Camarata 1', 'Camarata 2', 'Camarata 3', 'Varanda Exterior', 'Instalações Sanitárias'] }, { id: 'lp2', name: 'Piso 2', zones: ['Quartos Direção', 'Área Administrativa', 'Zona Técnica'] } ] }
 ];
 
-// === COMPONENTES DO APLICATIVO ===
+// === PONTO DE ENTRADA PRINCIPAL ===
+function App() {
+  const [role, setRole] = useState(null); 
+  const [user, setUser] = useState(null);
 
-// ECRÃ DE LOGIN
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+         await signInAnonymously(auth);
+      } catch (e) {
+        console.error("Auth falhou, tentando anónimo", e);
+      }
+    };
+    initAuth();
+    onAuthStateChanged(auth, setUser);
+  }, []);
+
+  if (!role) return <LoginScreen onSelectRole={setRole} />;
+  if (role === 'admin') return <AdminApp onLogout={() => setRole(null)} user={user} />;
+  if (role === 'worker') return <WorkerApp onLogout={() => setRole(null)} user={user} />;
+}
+
+// === ECRÃ DE LOGIN ===
 function LoginScreen({ onSelectRole }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
@@ -117,21 +135,10 @@ function LoginScreen({ onSelectRole }) {
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Acesso Coordenação</h2>
           <p className="text-gray-500 mb-6 text-sm">Insira o código PIN de segurança</p>
-          
           <div className="flex justify-center mb-6">
-            <input 
-              type="password" 
-              maxLength={4}
-              className="text-center text-3xl tracking-[0.5em] w-48 border-b-2 border-indigo-200 focus:border-indigo-600 focus:outline-none py-2 font-mono text-gray-800"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-              autoFocus
-            />
+            <input type="password" maxLength={4} className="text-center text-3xl tracking-[0.5em] w-48 border-b-2 border-indigo-200 focus:border-indigo-600 focus:outline-none py-2 font-mono text-gray-800" value={pin} onChange={(e) => setPin(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} autoFocus />
           </div>
-
           {error && <p className="text-red-500 text-sm mb-4 animate-pulse">Código incorreto.</p>}
-
           <button onClick={handleAdminLogin} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold mb-3 hover:bg-indigo-700 transition-colors">Entrar</button>
           <button onClick={() => {setShowPinInput(false); setPin('');}} className="text-gray-400 text-sm hover:text-gray-600">Voltar</button>
         </div>
@@ -142,53 +149,24 @@ function LoginScreen({ onSelectRole }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-900 to-gray-900 flex flex-col items-center justify-center p-6 font-sans text-white">
       <div className="mb-12 text-center">
-        <div className="w-20 h-20 bg-white/10 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm border border-white/20">
-          <ClipboardCheck className="w-10 h-10 text-emerald-400" />
-        </div>
+        <div className="w-20 h-20 bg-white/10 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm border border-white/20"><ClipboardCheck className="w-10 h-10 text-emerald-400" /></div>
         <h1 className="text-4xl font-bold mb-2">Complexo CSM</h1>
         <p className="text-emerald-200/80">Gestão de Manutenção & Obras</p>
       </div>
-
       <div className="grid gap-4 w-full max-w-sm">
-        <button 
-          onClick={() => setShowPinInput(true)}
-          className="bg-white text-gray-900 p-5 rounded-2xl flex items-center justify-between hover:bg-gray-50 transition-all shadow-lg group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-indigo-100 rounded-xl group-hover:bg-indigo-200 transition-colors">
-              <LayoutDashboard className="w-6 h-6 text-indigo-700" />
-            </div>
-            <div className="text-left">
-              <span className="block font-bold text-lg">Coordenação</span>
-              <span className="text-sm text-gray-500">Gestão, Vistorias, Relatórios</span>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-gray-400" />
+        <button onClick={() => setShowPinInput(true)} className="bg-white text-gray-900 p-5 rounded-2xl flex items-center justify-between hover:bg-gray-50 transition-all shadow-lg group">
+          <div className="flex items-center gap-4"><div className="p-3 bg-indigo-100 rounded-xl group-hover:bg-indigo-200 transition-colors"><LayoutDashboard className="w-6 h-6 text-indigo-700" /></div><div className="text-left"><span className="block font-bold text-lg">Coordenação</span><span className="text-sm text-gray-500">Gestão, Vistorias, Relatórios</span></div></div><ChevronRight className="w-5 h-5 text-gray-400" />
         </button>
-
-        <button 
-          onClick={() => onSelectRole('worker')}
-          className="bg-white/10 backdrop-blur-md border border-white/10 text-white p-5 rounded-2xl flex items-center justify-center hover:bg-white/20 transition-all shadow-lg group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-emerald-500/20 rounded-xl group-hover:bg-emerald-500/30 transition-colors">
-              <Hammer className="w-6 h-6 text-emerald-400" />
-            </div>
-            <div className="text-left">
-              <span className="block font-bold text-lg">Equipa Técnica</span>
-              <span className="text-sm text-emerald-200/70">Registo de trabalhos e fotos</span>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-white/50" />
+        <button onClick={() => onSelectRole('worker')} className="bg-white/10 backdrop-blur-md border border-white/10 text-white p-5 rounded-2xl flex items-center justify-center hover:bg-white/20 transition-all shadow-lg group">
+          <div className="flex items-center gap-4"><div className="p-3 bg-emerald-500/20 rounded-xl group-hover:bg-emerald-500/30 transition-colors"><Hammer className="w-6 h-6 text-emerald-400" /></div><div className="text-left"><span className="block font-bold text-lg">Equipa Técnica</span><span className="text-sm text-emerald-200/70">Registo de trabalhos e fotos</span></div></div><ChevronRight className="w-5 h-5 text-white/50" />
         </button>
       </div>
-      
       <p className="mt-12 text-xs text-white/20">v3.0 Full Integrated System</p>
     </div>
   );
 }
 
-// APP DO ADMIN
+// === ADMIN APP ===
 function AdminApp({ onLogout, user }) {
   const [currentView, setCurrentView] = useState('inspection'); 
   const [selectedBuilding, setSelectedBuilding] = useState(null);
@@ -201,35 +179,10 @@ function AdminApp({ onLogout, user }) {
   const [analyzingItem, setAnalyzingItem] = useState(null); 
   const [reportSummary, setReportSummary] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const [isGettingRecommendation, setIsGettingRecommendation] = useState(false);
-  const [generatedText, setGeneratedText] = useState(null);
-  const [generatedTextType, setGeneratedTextType] = useState(null);
-  const [isGeneratingText, setIsGeneratingText] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState([{ role: 'assistant', text: 'Olá! Sou o Assistente Técnico do Marítimo.' }]);
-  const [isChatLoading, setIsChatLoading] = useState(false);
   const [planningTasks, setPlanningTasks] = useState([]);
-  
-  const [planning, setPlanning] = useState({ 
-    startDate: '', 
-    endDate: '', 
-    teamType: 'internal', 
-    teamMembers: '', 
-    companyName: '',
-    externalContact: '', 
-    driveLink: '' 
-  });
-
+  const [planning, setPlanning] = useState({ startDate: '', endDate: '', teamType: 'internal', teamMembers: '', companyName: '', externalContact: '', driveLink: '' });
   const [newTaskInput, setNewTaskInput] = useState('');
-  const [signatures, setSignatures] = useState({ responsible: null, client: null });
-  const [signingRole, setSigningRole] = useState(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [estimatingTaskId, setEstimatingTaskId] = useState(null);
-  
-  const canvasRef = useRef(null);
-  const isDrawing = useRef(false);
-  const chatEndRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
@@ -240,36 +193,60 @@ function AdminApp({ onLogout, user }) {
         setPlanningTasks(tasks);
     });
     
+    // Configurações de Planeamento
     const metaRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'planning');
     const unsubMeta = onSnapshot(metaRef, (docSnap) => {
-        if (docSnap.exists()) {
-            setPlanning(docSnap.data());
-        } else {
-             setDoc(metaRef, planning, { merge: true });
-        }
+        if (docSnap.exists()) { setPlanning(docSnap.data()); } else { setDoc(metaRef, planning, { merge: true }); }
     });
-
     return () => { unsubscribe(); unsubMeta(); };
   }, [user]);
-
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
 
   const updatePlanningMeta = async (newData) => {
      const updated = { ...planning, ...newData };
      setPlanning(updated); 
-     if (user) {
-         try {
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'planning'), updated);
-         } catch(e) { console.error("Error updating meta", e); }
-     }
+     if (user) { try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'planning'), updated); } catch(e) { console.error(e); } }
   };
 
   const handleAddTaskToFirestore = async (task) => {
     if (!user) return;
-    try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...task, completed: false, assignedTo: 'Equipa Interna', createdAt: new Date().toISOString() }); } catch (e) { console.error("Error adding task", e); }
+    try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...task, completed: false, assignedTo: 'Equipa Interna', createdAt: new Date().toISOString() }); } catch (e) { console.error(e); }
   };
   const handleRemoveTask = async (taskId) => { if (!user) return; try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId)); } catch (e) { console.error(e); } };
   const handleToggleTask = async (taskId, currentStatus) => { if (!user) return; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completed: !currentStatus }); } catch (e) { console.error(e); } };
+
+  // Funções de Vistoria
+  const getAuditKey = (bid, zone, iid) => `${bid}-${zone}-${iid}`;
+  const handleCheck = (iid, s) => { if (selectedBuilding && selectedZone) setAuditData(p => ({ ...p, [getAuditKey(selectedBuilding.id, selectedZone, iid)]: { ...p[getAuditKey(selectedBuilding.id, selectedZone, iid)], status: s, date: inspectionDate, details: s === 'nok' ? { causes: '', measures: '', forecast: '' } : null } })); };
+  const handleDetailChange = (iid, f, v) => setAuditData(p => ({ ...p, [getAuditKey(selectedBuilding.id, selectedZone, iid)]: { ...p[getAuditKey(selectedBuilding.id, selectedZone, iid)].details, [f]: v } } ));
+
+  // Função Importar CSV
+  const handleFileImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        const text = event.target.result;
+        const lines = text.split('\n');
+        let count = 0;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            const separator = line.includes(';') ? ';' : ',';
+            const cols = line.split(separator);
+            if (cols.length >= 2) {
+                const desc = cols[1].trim().replace(/^"|"$/g, '');
+                if (desc) {
+                    await handleAddTaskToFirestore({ desc: desc, cat: cols[2] ? cols[2].trim() : 'Importado', date: cols[0].trim() || new Date().toISOString().split('T')[0] });
+                    count++;
+                }
+            }
+        }
+        setIsImporting(false);
+        alert(`${count} tarefas importadas!`);
+    };
+    reader.readAsText(file);
+  };
 
   const renderInspection = () => {
     if (!selectedBuilding) return (
@@ -290,7 +267,6 @@ function AdminApp({ onLogout, user }) {
       <div className="flex flex-1 overflow-hidden h-full">
         <aside className="w-80 bg-white border-r hidden md:block p-4 overflow-y-auto">
           <button onClick={() => setSelectedBuilding(null)} className="mb-4 text-sm text-gray-500 hover:text-emerald-600 flex items-center gap-1">&larr; Voltar</button>
-          <div className="mb-6 p-3 bg-emerald-50 rounded border border-emerald-100"><label className="block text-xs font-bold text-emerald-700 uppercase mb-1">Data Vistoria</label><input type="date" className="w-full text-sm bg-white border rounded" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)}/></div>
           {selectedBuilding.floors.map(f => (
             <div key={f.id} className="mb-2"><button onClick={() => setSelectedFloor(f.id === selectedFloor?.id ? null : f)} className={`w-full text-left px-3 py-2 rounded flex justify-between ${selectedFloor?.id === f.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50'}`}>{f.name} <ChevronDown className="w-4 h-4"/></button>
               {selectedFloor?.id === f.id && <div className="ml-4 mt-2 border-l-2 pl-2 space-y-1">{f.zones.map(z => <button key={z} onClick={() => setSelectedZone(z)} className={`w-full text-left px-3 py-2 rounded text-sm ${selectedZone === z ? 'bg-emerald-100 text-emerald-800' : 'hover:bg-gray-50'}`}>{z}</button>)}</div>}
@@ -301,6 +277,21 @@ function AdminApp({ onLogout, user }) {
           {!selectedZone ? <div className="flex flex-col items-center justify-center h-full text-gray-400"><MapPin className="w-16 h-16 mb-4" /><p>Selecione uma zona.</p></div> : (
             <div className="max-w-4xl mx-auto space-y-6 pb-20">
               <div className="bg-white p-6 rounded-xl shadow-sm border flex justify-between"><div><h1 className="text-2xl font-bold">{selectedZone}</h1><p className="text-sm text-gray-500">{selectedBuilding.name}</p></div></div>
+              <div className="bg-white rounded-xl shadow-sm border overflow-hidden divide-y">
+                {CHECKLIST_ITEMS.map((item) => {
+                  const key = getAuditKey(selectedBuilding.id, selectedZone, item.id);
+                  const data = auditData[key] || {};
+                  return (
+                    <div key={item.id} className="p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-center gap-4">
+                        <div className="flex items-center gap-3"><div className="p-2 bg-gray-100 rounded">{item.icon}</div><div><span className="font-medium block">{item.label}</span><span className="text-xs text-gray-400">{item.category}</span></div></div>
+                        <div className="flex items-center gap-2"><button onClick={() => handleCheck(item.id, 'ok')} className={`px-3 py-2 rounded border flex gap-2 ${data.status === 'ok' ? 'bg-emerald-500 text-white' : 'bg-white text-gray-400'}`}><CheckCircle2 className="w-5 h-5"/> OK</button><button onClick={() => handleCheck(item.id, 'nok')} className={`px-3 py-2 rounded border flex gap-2 ${data.status === 'nok' ? 'bg-red-500 text-white' : 'bg-white text-gray-400'}`}><XCircle className="w-5 h-5"/> Erro</button></div>
+                      </div>
+                      {data.status === 'nok' && (<div className="mt-4 pl-12 grid grid-cols-1 md:grid-cols-2 gap-4"><div className="col-span-2"><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Causas..." value={data.details?.causes || ''} onChange={(e) => handleDetailChange(item.id, 'causes', e.target.value)}/></div><div><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Medidas..." value={data.details?.measures || ''} onChange={(e) => handleDetailChange(item.id, 'measures', e.target.value)}/></div></div>)}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </main>
@@ -308,94 +299,29 @@ function AdminApp({ onLogout, user }) {
     );
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800 h-screen">
-      <div className="bg-white border-b px-4 pt-4 shadow-sm print:hidden">
-        <div className="flex items-center gap-2 font-bold text-xl text-emerald-800 mb-4"><ClipboardCheck className="w-6 h-6"/> Manutenção App 2.0 <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full ml-2 flex items-center gap-1"><Sparkles className="w-3 h-3"/> AI Powered</span></div>
-        <div className="flex gap-6">
-          {['inspection','planning','report'].map(v => <button key={v} onClick={() => setCurrentView(v)} className={`pb-3 px-2 border-b-2 capitalize ${currentView===v?'border-emerald-500 text-emerald-600':'border-transparent'}`}>{v === 'inspection' ? 'Vistoria' : v === 'planning' ? 'Planeamento' : 'Relatório'}</button>)}
-        </div>
-        <button onClick={onLogout} className="absolute top-4 right-4 bg-gray-100 hover:bg-gray-200 p-2 rounded-full"><LogOut className="w-5 h-5 text-gray-600"/></button>
-      </div>
-      <div className="flex-1 overflow-hidden relative">
-        {currentView === 'inspection' && renderInspection()}
-        {currentView === 'planning' && <div className="p-8">Módulo de Planeamento (Em construção)</div>}
-        {currentView === 'report' && <div className="p-8">Módulo de Relatórios (Em construção)</div>}
-      </div>
-    </div>
-  );
-}
-
-// APP DO TRABALHADOR
-function WorkerApp({ onLogout, user }) {
-  const [selectedWorker, setSelectedWorker] = useState(localStorage.getItem('workerName') || '');
-  const [inputName, setInputName] = useState(''); 
-  const [tasks, setTasks] = useState([]);
-  
-  useEffect(() => {
-    if (!user) return;
-    const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
-    const q = query(tasksRef);
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        fetchedTasks.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-        setTasks(fetchedTasks);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  const handleLogin = () => { if (inputName.trim()) { const name = inputName.trim(); setSelectedWorker(name); localStorage.setItem('workerName', name); } };
-  const handleLogoutWorker = () => { setSelectedWorker(''); localStorage.removeItem('workerName'); setInputName(''); };
-
-  if (!selectedWorker) {
+  const renderPlanning = () => {
     return (
-      <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col justify-center items-center font-sans">
-        <h1 className="text-3xl font-bold mb-3 text-center">Área do Trabalhador</h1>
-        <div className="w-full max-w-sm space-y-4 bg-gray-800 p-6 rounded-2xl border border-gray-700">
-           <input type="text" placeholder="O teu nome" className="w-full p-4 bg-gray-900 border border-gray-600 rounded-xl text-white" value={inputName} onChange={(e) => setInputName(e.target.value)} />
-           <button onClick={handleLogin} className="w-full bg-emerald-600 text-white p-4 rounded-xl font-bold">Entrar</button>
+      <div className="h-full flex flex-col md:flex-row bg-gray-50">
+        <div className="w-full md:w-1/3 bg-white border-r flex flex-col p-4 gap-4">
+           <div className="flex gap-2"><input type="text" className="flex-1 border rounded px-2 text-sm" placeholder="Nova tarefa..." value={newTaskInput} onChange={e => setNewTaskInput(e.target.value)} /><button onClick={() => {if(newTaskInput) {handleAddTaskToFirestore({ desc: newTaskInput, cat: 'Manual', date: new Date().toISOString().split('T')[0] }); setNewTaskInput('')}}} className="bg-emerald-600 text-white p-1 rounded"><Plus className="w-5 h-5"/></button></div>
+           <label className="w-full bg-blue-50 text-blue-600 border border-blue-200 p-2 rounded flex items-center justify-center gap-2 cursor-pointer hover:bg-blue-100 transition-colors text-sm font-medium"><input type="file" accept=".csv,.txt" className="hidden" onChange={handleFileImport} disabled={isImporting} />{isImporting ? <Loader2 className="w-4 h-4 animate-spin"/> : <UploadCloud className="w-4 h-4"/>} Importar Ficheiro</label>
+           <div className="flex-1 overflow-y-auto space-y-2">{planningTasks.map(t => (<div key={t.id} className="p-3 border rounded bg-white flex justify-between items-start"><div className="text-sm"><p className="font-medium">{t.desc}</p><span className="text-xs text-gray-400">{t.date}</span></div><button onClick={() => handleRemoveTask(t.id)}><X className="w-4 h-4 text-gray-400"/></button></div>))}</div>
         </div>
-        <button onClick={onLogout} className="mt-8 text-gray-500 hover:text-white text-sm">Voltar</button>
+        <div className="flex-1 p-6 overflow-y-auto">
+          <h2 className="text-2xl font-bold mb-4">Planeamento</h2>
+          <div className="bg-white p-4 rounded shadow-sm border mb-4">
+             <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-xs font-bold text-gray-500 uppercase">Início</label><input type="datetime-local" className="border rounded p-2 w-full" value={planning.startDate || ''} onChange={e => updatePlanningMeta({ startDate: e.target.value })} /></div><div><label className="block text-xs font-bold text-gray-500 uppercase">Fim</label><input type="datetime-local" className="border rounded p-2 w-full" value={planning.endDate || ''} onChange={e => updatePlanningMeta({ endDate: e.target.value })} /></div></div>
+             <textarea className="border rounded p-2 w-full text-sm" rows={2} placeholder="Equipa / Notas..." value={planning.teamMembers || ''} onChange={e => updatePlanningMeta({ teamMembers: e.target.value })} />
+          </div>
+          <div className="bg-white p-6 rounded shadow space-y-2">
+            {planningTasks.map(t => (<div key={t.id} className={`p-4 border rounded flex items-center gap-3 ${t.completed ? 'bg-emerald-50' : 'bg-white'}`}><input type="checkbox" checked={t.completed} onChange={() => handleToggleTask(t.id, t.completed)} className="w-5 h-5" /><span className={t.completed ? 'line-through text-emerald-700' : ''}>{t.desc}</span></div>))}
+          </div>
+        </div>
       </div>
     );
-  }
+  };
 
-  return (
-     <div className="min-h-screen bg-gray-50 pb-24 font-sans p-5">
-        <header className="flex justify-between items-center mb-6">
-           <h2 className="font-bold text-xl">{selectedWorker}</h2>
-           <button onClick={handleLogoutWorker} className="text-gray-500"><LogOut /></button>
-        </header>
-        <div>Lista de Tarefas (A carregar...)</div>
-     </div>
-  );
-}
-
-// === COMPONENTE PRINCIPAL ===
-export default function App() {
-  const [role, setRole] = useState(null); 
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-         await signInAnonymously(auth);
-      } catch (e) {
-        console.error("Auth falhou", e);
-      }
-    };
-    initAuth();
-    onAuthStateChanged(auth, setUser);
-  }, []);
-
-  if (!role) return <LoginScreen onSelectRole={setRole} />;
-  if (role === 'admin') return <AdminApp onLogout={() => setRole(null)} user={user} />;
-  if (role === 'worker') return <WorkerApp onLogout={() => setRole(null)} user={user} />;
-}
-
-// === MONTAGEM DA APP (Isto deve estar sempre no fundo) ===
-const container = document.getElementById('root');
-if (container) {
-  const root = createRoot(container);
-  root.render(<App />);
-}
+  const renderReport = () => {
+    const completedTasks = planningTasks.filter(t => t.completed);
+    return (
+      <div className="max-w-5xl mx-auto
