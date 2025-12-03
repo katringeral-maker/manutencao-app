@@ -18,14 +18,15 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 
-// --- FIREBASE CONFIG (IMPORTANTE: MANTENHA AS SUAS CHAVES AQUI) ---
-// Se não colocar as suas chaves reais, a app funciona em modo de demonstração.
+// --- FIREBASE CONFIG ---
+// IMPORTANTE: Para a app guardar dados de verdade, tem de colocar as suas chaves aqui.
+// Se deixar como está ("demo"), a app abre mas não guarda nada permanentemente.
 const firebaseConfig = { 
     apiKey: "demo", 
     projectId: "demo" 
 };
 
-// Inicialização
+// Inicialização da App
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
