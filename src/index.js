@@ -26,7 +26,8 @@ const firebaseConfig = {
 };
 
 // Inicialização segura do Firebase
-const app = initializeApp(Object.keys(firebaseConfig).length ? firebaseConfig : { apiKey: "demo" });
+// Se não houver config, usa uma chave "demo" para não bloquear a tela branca
+const app = initializeApp(Object.keys(firebaseConfig).length ? firebaseConfig : { apiKey: "demo", projectId: "demo" });
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = 'default-app-id';
@@ -267,4 +268,140 @@ function AdminApp({ onLogout, user }) {
         <aside className="w-80 bg-white border-r hidden md:block p-4 overflow-y-auto">
           <button onClick={() => setSelectedBuilding(null)} className="mb-4 text-sm text-gray-500 hover:text-emerald-600 flex items-center gap-1">&larr; Voltar</button>
           {selectedBuilding.floors.map(f => (
-            <div key={f.id} className="mb-2"><button
+            <div key={f.id} className="mb-2"><button onClick={() => setSelectedFloor(f.id === selectedFloor?.id ? null : f)} className={`w-full text-left px-3 py-2 rounded flex justify-between ${selectedFloor?.id === f.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50'}`}>{f.name} <ChevronDown className="w-4 h-4"/></button>
+              {selectedFloor?.id === f.id && <div className="ml-4 mt-2 border-l-2 pl-2 space-y-1">{f.zones.map(z => <button key={z} onClick={() => setSelectedZone(z)} className={`w-full text-left px-3 py-2 rounded text-sm ${selectedZone === z ? 'bg-emerald-100 text-emerald-800' : 'hover:bg-gray-50'}`}>{z}</button>)}</div>}
+            </div>
+          ))}
+        </aside>
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-8">
+          {!selectedZone ? <div className="flex flex-col items-center justify-center h-full text-gray-400"><MapPin className="w-16 h-16 mb-4" /><p>Selecione uma zona.</p></div> : (
+            <div className="max-w-4xl mx-auto space-y-6 pb-20">
+              <div className="bg-white p-6 rounded-xl shadow-sm border flex justify-between"><div><h1 className="text-2xl font-bold">{selectedZone}</h1><p className="text-sm text-gray-500">{selectedBuilding.name}</p></div></div>
+              <div className="bg-white rounded-xl shadow-sm border overflow-hidden divide-y">
+                {CHECKLIST_ITEMS.map((item) => {
+                  const key = getAuditKey(selectedBuilding.id, selectedZone, item.id);
+                  const data = auditData[key] || {};
+                  return (
+                    <div key={item.id} className="p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-center gap-4">
+                        <div className="flex items-center gap-3"><div className="p-2 bg-gray-100 rounded">{item.icon}</div><div><span className="font-medium block">{item.label}</span><span className="text-xs text-gray-400">{item.category}</span></div></div>
+                        <div className="flex items-center gap-2"><button onClick={() => handleCheck(item.id, 'ok')} className={`px-3 py-2 rounded border flex gap-2 ${data.status === 'ok' ? 'bg-emerald-500 text-white' : 'bg-white text-gray-400'}`}><CheckCircle2 className="w-5 h-5"/> OK</button><button onClick={() => handleCheck(item.id, 'nok')} className={`px-3 py-2 rounded border flex gap-2 ${data.status === 'nok' ? 'bg-red-500 text-white' : 'bg-white text-gray-400'}`}><XCircle className="w-5 h-5"/> Erro</button></div>
+                      </div>
+                      {data.status === 'nok' && (<div className="mt-4 pl-12 grid grid-cols-1 md:grid-cols-2 gap-4"><div className="col-span-2"><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Causas..." value={data.details?.causes || ''} onChange={(e) => handleDetailChange(item.id, 'causes', e.target.value)}/></div><div><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Medidas..." value={data.details?.measures || ''} onChange={(e) => handleDetailChange(item.id, 'measures', e.target.value)}/></div></div>)}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+    );
+  };
+
+  const renderPlanning = () => {
+    return (
+      <div className="h-full flex flex-col md:flex-row bg-gray-50">
+        <div className="w-full md:w-1/3 bg-white border-r flex flex-col p-4 gap-4">
+           <div className="flex gap-2"><input type="text" className="flex-1 border rounded px-2 text-sm" placeholder="Nova tarefa..." value={newTaskInput} onChange={e => setNewTaskInput(e.target.value)} /><button onClick={() => {if(newTaskInput) {handleAddTaskToFirestore({ desc: newTaskInput, cat: 'Manual', date: new Date().toISOString().split('T')[0] }); setNewTaskInput('')}}} className="bg-emerald-600 text-white p-1 rounded"><Plus className="w-5 h-5"/></button></div>
+           <label className="w-full bg-blue-50 text-blue-600 border border-blue-200 p-2 rounded flex items-center justify-center gap-2 cursor-pointer hover:bg-blue-100 transition-colors text-sm font-medium"><input type="file" accept=".csv,.txt" className="hidden" onChange={handleFileImport} disabled={isImporting} />{isImporting ? <Loader2 className="w-4 h-4 animate-spin"/> : <UploadCloud className="w-4 h-4"/>} Importar Ficheiro</label>
+           <div className="flex-1 overflow-y-auto space-y-2">{planningTasks.map(t => (<div key={t.id} className="p-3 border rounded bg-white flex justify-between items-start"><div className="text-sm"><p className="font-medium">{t.desc}</p><span className="text-xs text-gray-400">{t.date}</span></div><button onClick={() => handleRemoveTask(t.id)}><X className="w-4 h-4 text-gray-400"/></button></div>))}</div>
+        </div>
+        <div className="flex-1 p-6 overflow-y-auto">
+          <h2 className="text-2xl font-bold mb-4">Planeamento</h2>
+          <div className="bg-white p-4 rounded shadow-sm border mb-4">
+             <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-xs font-bold text-gray-500 uppercase">Início</label><input type="datetime-local" className="border rounded p-2 w-full" value={planning.startDate || ''} onChange={e => updatePlanningMeta({ startDate: e.target.value })} /></div><div><label className="block text-xs font-bold text-gray-500 uppercase">Fim</label><input type="datetime-local" className="border rounded p-2 w-full" value={planning.endDate || ''} onChange={e => updatePlanningMeta({ endDate: e.target.value })} /></div></div>
+             <textarea className="border rounded p-2 w-full text-sm" rows={2} placeholder="Equipa / Notas..." value={planning.teamMembers || ''} onChange={e => updatePlanningMeta({ teamMembers: e.target.value })} />
+          </div>
+          <div className="bg-white p-6 rounded shadow space-y-2">
+            {planningTasks.map(t => (<div key={t.id} className={`p-4 border rounded flex items-center gap-3 ${t.completed ? 'bg-emerald-50' : 'bg-white'}`}><input type="checkbox" checked={t.completed} onChange={() => handleToggleTask(t.id, t.completed)} className="w-5 h-5" /><span className={t.completed ? 'line-through text-emerald-700' : ''}>{t.desc}</span></div>))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderReport = () => {
+    const completedTasks = planningTasks.filter(t => t.completed);
+    return (
+      <div className="max-w-5xl mx-auto p-8 bg-white min-h-screen">
+        <h1 className="text-3xl font-bold uppercase border-b-2 border-emerald-600 pb-4 mb-8">Relatório de Manutenção</h1>
+        <div className="mb-8"><h2 className="text-xl font-bold mb-4 text-emerald-600">Trabalhos Concluídos ({completedTasks.length})</h2><table className="w-full text-sm border-collapse"><thead className="bg-gray-100"><tr><th className="p-2 border text-left">Data</th><th className="p-2 border text-left">Tarefa</th></tr></thead><tbody>{completedTasks.map((t, i) => (<tr key={i} className="border-b"><td className="p-2 border text-xs">{t.date}</td><td className="p-2 border font-medium">{t.desc}</td></tr>))}</tbody></table></div>
+        <div className="mb-8"><h2 className="text-xl font-bold mb-4 text-red-600">Anomalias Registadas</h2><p className="text-gray-500 italic">As anomalias registadas na vistoria aparecerão aqui.</p></div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800 h-screen">
+      <div className="bg-white border-b px-4 pt-4 shadow-sm print:hidden">
+        <div className="flex items-center gap-2 font-bold text-xl text-emerald-800 mb-4"><ClipboardCheck className="w-6 h-6"/> Manutenção App 2.0</div>
+        <div className="flex gap-6">{['inspection','planning','report'].map(v => <button key={v} onClick={() => setCurrentView(v)} className={`pb-3 px-2 border-b-2 capitalize ${currentView===v?'border-emerald-500 text-emerald-600':'border-transparent'}`}>{v === 'inspection' ? 'Vistoria' : v === 'planning' ? 'Planeamento' : 'Relatório'}</button>)}</div>
+        <button onClick={onLogout} className="absolute top-4 right-4 bg-gray-100 hover:bg-gray-200 p-2 rounded-full"><LogOut className="w-5 h-5 text-gray-600"/></button>
+      </div>
+      <div className="flex-1 overflow-hidden relative">
+        {currentView === 'inspection' && renderInspection()}
+        {currentView === 'planning' && renderPlanning()}
+        {currentView === 'report' && <div className="h-full overflow-y-auto">{renderReport()}</div>}
+      </div>
+    </div>
+  );
+}
+
+// === WORKER APP ===
+function WorkerApp({ onLogout, user }) {
+  const [selectedWorker, setSelectedWorker] = useState(localStorage.getItem('workerName') || '');
+  const [inputName, setInputName] = useState(''); 
+  const [tasks, setTasks] = useState([]);
+  
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        fetchedTasks.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        setTasks(fetchedTasks);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleLogin = () => { if (inputName.trim()) { const name = inputName.trim(); setSelectedWorker(name); localStorage.setItem('workerName', name); } };
+  const handleLogoutWorker = () => { setSelectedWorker(''); localStorage.removeItem('workerName'); setInputName(''); };
+  const handleCompleteTask = async (taskId, currentStatus) => { try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completed: !currentStatus }); } catch (e) { alert("Erro."); } };
+
+  if (!selectedWorker) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col justify-center items-center font-sans">
+        <h1 className="text-3xl font-bold mb-3 text-center">Área do Trabalhador</h1>
+        <div className="w-full max-w-sm space-y-4 bg-gray-800 p-6 rounded-2xl border border-gray-700">
+           <input type="text" placeholder="O teu nome" className="w-full p-4 bg-gray-900 border border-gray-600 rounded-xl text-white" value={inputName} onChange={(e) => setInputName(e.target.value)} />
+           <button onClick={handleLogin} className="w-full bg-emerald-600 text-white p-4 rounded-xl font-bold">Entrar</button>
+        </div>
+        <button onClick={onLogout} className="mt-8 text-gray-500 hover:text-white text-sm">Voltar</button>
+      </div>
+    );
+  }
+
+  const myTasks = tasks.filter(t => !t.completed); // Mostra apenas pendentes
+  return (
+     <div className="min-h-screen bg-gray-50 pb-24 font-sans p-5">
+        <header className="flex justify-between items-center mb-6"><h2 className="font-bold text-xl">{selectedWorker}</h2><button onClick={handleLogoutWorker} className="text-gray-500"><LogOut /></button></header>
+        <div className="space-y-4">
+           <h3 className="font-bold text-gray-700">Tarefas Pendentes</h3>
+           {myTasks.length === 0 ? <p className="text-gray-400">Tudo feito!</p> : myTasks.map(task => (
+             <div key={task.id} className="bg-white p-5 rounded-2xl border shadow-sm">
+                <h4 className="font-bold text-lg mb-2">{task.desc}</h4>
+                <button onClick={() => handleCompleteTask(task.id, task.completed)} className="w-full bg-emerald-100 text-emerald-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2"><CheckCircle2 className="w-5 h-5" /> Marcar como Feito</button>
+             </div>
+           ))}
+        </div>
+     </div>
+  );
+}
+
+// === MONTAGEM ===
+const container = document.getElementById('root');
+if (container) {
+  const root = createRoot(container);
+  root.render(<App />);
+}
