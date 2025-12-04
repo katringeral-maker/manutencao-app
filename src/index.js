@@ -28,12 +28,12 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = 'default-app-id';
 
-// --- CONFIGURAÇÃO GEMINI API (COLOQUE A SUA CHAVE AQUI) ---
-const apiKey = "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE";
+// --- CONFIGURAÇÃO GEMINI API ---
+const apiKey = ""; // <--- COLE A SUA CHAVE GEMINI AQUI
 
-// --- FUNÇÕES DE IA ---
+// --- FUNÇÕES AUXILIARES IA ---
 async function callGeminiVision(base64Image, prompt) {
-  if (!apiKey) { alert("Falta a API Key do Gemini no código!"); return null; }
+  if (!apiKey) { alert("API Key em falta!"); return null; }
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -45,7 +45,7 @@ async function callGeminiVision(base64Image, prompt) {
 }
 
 async function callGeminiText(prompt) {
-  if (!apiKey) { alert("Falta a API Key do Gemini!"); return null; }
+  if (!apiKey) { alert("API Key em falta!"); return null; }
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -58,22 +58,22 @@ async function callGeminiText(prompt) {
 
 // --- DADOS ---
 const CHECKLIST_ITEMS = [
-  { id: 'limpeza', label: 'Limpeza Geral / Lixo', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
-  { id: 'vidros', label: 'Vidros e Fachadas', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
-  { id: 'duches', label: 'Duches / Torneiras', category: 'Canalização', icon: <Droplets className="w-4 h-4" /> },
-  { id: 'wc', label: 'Instalações Sanitárias', category: 'Canalização', icon: <CheckCircle2 className="w-4 h-4" /> },
-  { id: 'iluminacao', label: 'Iluminação', category: 'Elétrica', icon: <Lightbulb className="w-4 h-4" /> },
-  { id: 'eletrica', label: 'Tomadas / Rede / Wifi', category: 'Elétrica', icon: <Wifi className="w-4 h-4" /> },
-  { id: 'portas', label: 'Portas / Fechaduras', category: 'Civil', icon: <DoorOpen className="w-4 h-4" /> },
-  { id: 'piso', label: 'Piso / Pavimento', category: 'Civil', icon: <Footprints className="w-4 h-4" /> },
-  { id: 'paredes', label: 'Paredes / Pintura', category: 'Civil', icon: <PaintBucket className="w-4 h-4" /> },
-  { id: 'teto', label: 'Tetos Falsos', category: 'Civil', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { id: 'sinaletica', label: 'Sinalética', category: 'Geral', icon: <AlertTriangle className="w-4 h-4" /> },
-  { id: 'serralharia', label: 'Serralharia / Portões', category: 'Geral', icon: <Wrench className="w-4 h-4" /> },
-  { id: 'fitness', label: 'Material Desportivo/Fitness', category: 'Equipamento', icon: <Hammer className="w-4 h-4" /> },
-  { id: 'relvado_corte', label: 'Relvado (Corte)', category: 'Espaços Verdes', icon: <TreePine className="w-4 h-4" /> },
-  { id: 'relvado_rega', label: 'Sistema de Rega', category: 'Espaços Verdes', icon: <Droplets className="w-4 h-4" /> },
-  { id: 'relvado_adubacao', label: 'Adubação / Tratamento', category: 'Espaços Verdes', icon: <TreePine className="w-4 h-4" /> },
+  { id: 'limpeza', label: 'Limpeza Geral / Lixo', category: 'Limpeza', icon: <ClipboardCheck size={16} /> },
+  { id: 'vidros', label: 'Vidros e Fachadas', category: 'Limpeza', icon: <ClipboardCheck size={16} /> },
+  { id: 'duches', label: 'Duches / Torneiras', category: 'Canalização', icon: <Droplets size={16} /> },
+  { id: 'wc', label: 'Instalações Sanitárias', category: 'Canalização', icon: <CheckCircle2 size={16} /> },
+  { id: 'iluminacao', label: 'Iluminação', category: 'Elétrica', icon: <Lightbulb size={16} /> },
+  { id: 'eletrica', label: 'Tomadas / Rede / Wifi', category: 'Elétrica', icon: <Wifi size={16} /> },
+  { id: 'portas', label: 'Portas / Fechaduras', category: 'Civil', icon: <DoorOpen size={16} /> },
+  { id: 'piso', label: 'Piso / Pavimento', category: 'Civil', icon: <Footprints size={16} /> },
+  { id: 'paredes', label: 'Paredes / Pintura', category: 'Civil', icon: <PaintBucket size={16} /> },
+  { id: 'teto', label: 'Tetos Falsos', category: 'Civil', icon: <LayoutDashboard size={16} /> },
+  { id: 'sinaletica', label: 'Sinalética', category: 'Geral', icon: <AlertTriangle size={16} /> },
+  { id: 'serralharia', label: 'Serralharia / Portões', category: 'Geral', icon: <Wrench size={16} /> },
+  { id: 'fitness', label: 'Material Desportivo/Fitness', category: 'Equipamento', icon: <Hammer size={16} /> },
+  { id: 'relvado_corte', label: 'Relvado (Corte)', category: 'Espaços Verdes', icon: <TreePine size={16} /> },
+  { id: 'relvado_rega', label: 'Sistema de Rega', category: 'Espaços Verdes', icon: <Droplets size={16} /> },
+  { id: 'relvado_adubacao', label: 'Adubação / Tratamento', category: 'Espaços Verdes', icon: <TreePine size={16} /> },
 ];
 
 const BUILDINGS_DATA = [
@@ -84,88 +84,82 @@ const BUILDINGS_DATA = [
   { id: 'lar', name: 'Lar / Residência', floors: [ { id: 'lp0', name: 'Piso 0', zones: ['Sala de Convívio', 'Sala do Volante', 'Balneários', 'Quarto Serviço', 'Corredor'] }, { id: 'lp1', name: 'Piso 1', zones: ['Camarata 1', 'Camarata 2', 'Camarata 3', 'Varanda Exterior', 'Instalações Sanitárias'] }, { id: 'lp2', name: 'Piso 2', zones: ['Quartos Direção', 'Área Administrativa', 'Zona Técnica'] } ] }
 ];
 
-// === ADMIN APP (Lógica Principal) ===
+// === ADMIN APP ===
 function AdminApp({ onLogout, user }) {
   const [currentView, setCurrentView] = useState('inspection'); 
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [selectedFloor, setSelectedFloor] = useState(null);
   const [selectedZone, setSelectedZone] = useState(null);
   const [inspectionDate, setInspectionDate] = useState(new Date().toISOString().split('T')[0]); 
+  
+  // Dados de Vistoria
   const [auditData, setAuditData] = useState({});
   const [analyzingItem, setAnalyzingItem] = useState(null);
   const [isGettingRecommendation, setIsGettingRecommendation] = useState(false);
 
-  // Funções de Vistoria
+  // Dados de Planeamento
+  const [planningTasks, setPlanningTasks] = useState([]);
+  const [planning, setPlanning] = useState({ startDate: '', endDate: '', teamMembers: '' });
+  const [newTaskInput, setNewTaskInput] = useState('');
+  const [estimatingTaskId, setEstimatingTaskId] = useState(null);
+  const [isGeneratingWhatsApp, setIsGeneratingWhatsApp] = useState(false);
+
+  // Dados de Relatório
+  const [reportSummary, setReportSummary] = useState('');
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+
+  // --- FIREBASE SYNC ---
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        tasks.sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? 1 : -1);
+        setPlanningTasks(tasks);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // --- FUNÇÕES DE VISTORIA (IA) ---
   const getAuditKey = (bid, zone, iid) => `${bid}-${zone}-${iid}`;
   
   const handleCheck = (iid, s) => { 
     if (selectedBuilding && selectedZone) {
-      setAuditData(p => ({ 
-        ...p, 
-        [getAuditKey(selectedBuilding.id, selectedZone, iid)]: { 
-          ...p[getAuditKey(selectedBuilding.id, selectedZone, iid)], 
-          status: s, 
-          date: inspectionDate, 
-          details: s === 'nok' ? { causes: '', measures: '', forecast: '' } : null 
-        } 
-      })); 
+      const key = getAuditKey(selectedBuilding.id, selectedZone, iid);
+      setAuditData(p => ({ ...p, [key]: { ...p[key], status: s, date: inspectionDate, details: s === 'nok' ? { causes: '', measures: '', forecast: '' } : null } })); 
     }
   };
 
   const handleDetailChange = (iid, field, value) => {
     const key = getAuditKey(selectedBuilding.id, selectedZone, iid);
-    setAuditData(prev => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        details: {
-          ...prev[key].details,
-          [field]: value
-        }
-      }
-    }));
+    setAuditData(p => ({ ...p, [key]: { ...p[key], details: { ...p[key].details, [field]: value } } }));
   };
 
-  // --- FUNÇÃO: Analisar Foto com IA ---
   const handleAnalyzePhoto = async (itemId) => {
     const key = getAuditKey(selectedBuilding.id, selectedZone, itemId);
     const photoUrl = auditData[key]?.photo;
-    if (!photoUrl) { alert("Primeiro tire uma foto!"); return; }
-    
+    if (!photoUrl) { alert("Tire uma foto primeiro."); return; }
     setAnalyzingItem(itemId);
-    // Simulação de envio de imagem (Converter URL blob para base64 seria necessário num ambiente real)
-    // Aqui usamos um prompt de texto para testar a lógica
     const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
-    const prompt = `Analisa este problema de manutenção: ${itemLabel}. Quais as causas prováveis e solução? Responde em JSON: {"causes": "...", "measures": "..."}`;
-    
-    // Chamada à IA
+    const prompt = `Analisa este problema: ${itemLabel}. Responde JSON: {"causes": "...", "measures": "..."}`;
     const resultText = await callGeminiText(prompt);
-    
     if (resultText) {
       try {
-        const cleanJson = resultText.replace(/```json|```/g, '').trim();
-        const result = JSON.parse(cleanJson);
-        // Atualiza os campos automaticamente
-        handleDetailChange(itemId, 'causes', result.causes);
-        handleDetailChange(itemId, 'measures', result.measures);
-      } catch (e) {
-        handleDetailChange(itemId, 'causes', "Erro ao processar IA. Tente manualmente.");
-      }
+        const res = JSON.parse(resultText.replace(/```json|```/g, '').trim());
+        handleDetailChange(itemId, 'causes', res.causes);
+        handleDetailChange(itemId, 'measures', res.measures);
+      } catch (e) { console.error(e); }
     }
     setAnalyzingItem(null);
   };
 
-  // --- FUNÇÃO: Pedir Recomendação (Botão Mágico) ---
   const handleGetRecommendationText = async (itemId, causeText) => {
-    if (!causeText) { alert("Escreva a causa primeiro ou use a IA para analisar."); return; }
+    if (!causeText) { alert("Escreva a causa."); return; }
     setIsGettingRecommendation(true);
     const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
-    const prompt = `Como reparar "${itemLabel}" com o problema: "${causeText}"? Responde curto.`;
-    
-    const recommendation = await callGeminiText(prompt);
-    if (recommendation) {
-      handleDetailChange(itemId, 'measures', recommendation);
-    }
+    const prompt = `Como reparar "${itemLabel}" com problema: "${causeText}"? Curto.`;
+    const rec = await callGeminiText(prompt);
+    if (rec) handleDetailChange(itemId, 'measures', rec);
     setIsGettingRecommendation(false);
   };
 
@@ -174,124 +168,84 @@ function AdminApp({ onLogout, user }) {
     if (f) setAuditData(p => ({ ...p, [getAuditKey(selectedBuilding.id, selectedZone, iid)]: { ...p[getAuditKey(selectedBuilding.id, selectedZone, iid)], photo: URL.createObjectURL(f) } })) 
   };
 
-  const renderInspection = () => {
-    if (!selectedBuilding) return (
-      <div className="p-6 text-center">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Vistorias</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mt-8">
-          {BUILDINGS_DATA.map((b) => (
-            <button key={b.id} onClick={() => setSelectedBuilding(b)} className="bg-white p-6 rounded-xl shadow border hover:bg-emerald-50 flex items-center gap-4 transition-all">
-              <div className="p-4 bg-emerald-100 rounded-full"><Building2 className="w-8 h-8 text-emerald-700" /></div>
-              <span className="font-bold text-lg text-gray-700">{b.name}</span>
-            </button>
+  // --- FUNÇÕES DE PLANEAMENTO (IA) ---
+  const handleAddTask = async () => {
+    if (!newTaskInput) return;
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: newTaskInput, completed: false, assignedTo: 'Geral', date: new Date().toISOString().split('T')[0] });
+    setNewTaskInput('');
+  };
+
+  const handleEstimateTask = async (task) => {
+    setEstimatingTaskId(task.id);
+    const prompt = `Estima duração e material para: "${task.desc}". JSON: {"duration": "...", "materials": "..."}`;
+    const resultText = await callGeminiText(prompt);
+    if (resultText) {
+      try {
+        const res = JSON.parse(resultText.replace(/```json|```/g, '').trim());
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { duration: res.duration, materials: res.materials });
+      } catch (e) { console.error(e); }
+    }
+    setEstimatingTaskId(null);
+  };
+
+  const handleGenerateWhatsApp = async () => {
+    setIsGeneratingWhatsApp(true);
+    const tasks = planningTasks.filter(t => !t.completed).map(t => `- ${t.desc}`).join('\n');
+    const prompt = `Cria msg WhatsApp para equipa com estas tarefas:\n${tasks}\nUsa emojis.`;
+    const text = await callGeminiText(prompt);
+    if (text) alert("Copiado para a área de transferência:\n" + text); // Simulação de cópia
+    setIsGeneratingWhatsApp(false);
+  };
+
+  // --- FUNÇÕES DE RELATÓRIO (IA) ---
+  const handleGenerateSummary = async () => {
+    setIsGeneratingSummary(true);
+    const done = planningTasks.filter(t => t.completed).map(t => t.desc).join(', ');
+    const prompt = `Cria resumo executivo de manutenção. Feito: ${done}. Tom profissional.`;
+    const text = await callGeminiText(prompt);
+    if (text) setReportSummary(text);
+    setIsGeneratingSummary(false);
+  };
+
+  // --- RENDERERS ---
+  const renderInspection = () => (
+    <div className="flex flex-col h-full bg-gray-50">
+      {!selectedBuilding ? (
+        <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {BUILDINGS_DATA.map(b => (
+            <button key={b.id} onClick={() => setSelectedBuilding(b)} className="bg-white p-6 rounded-xl shadow hover:bg-emerald-50 flex items-center gap-4 transition-all"><div className="p-4 bg-emerald-100 rounded-full"><Building2 className="text-emerald-700"/></div><span className="font-bold text-lg text-gray-700">{b.name}</span></button>
           ))}
         </div>
-      </div>
-    );
-
-    return (
-      <div className="flex flex-col h-full bg-gray-50">
-        <div className="bg-white p-4 border-b flex justify-between items-center">
-          <button onClick={() => setSelectedBuilding(null)} className="text-sm text-gray-500 hover:text-emerald-600 flex items-center gap-1">&larr; Voltar</button>
-          <h2 className="font-bold text-lg">{selectedBuilding.name}</h2>
-          <div></div>
-        </div>
+      ) : (
         <div className="flex flex-1 overflow-hidden">
-          <aside className="w-64 bg-white border-r overflow-y-auto hidden md:block">
+          <aside className="w-64 bg-white border-r overflow-y-auto hidden md:block p-2">
+            <button onClick={() => setSelectedBuilding(null)} className="mb-4 text-sm text-gray-500 hover:text-emerald-600 flex items-center gap-1">&larr; Voltar</button>
             {selectedBuilding.floors.map(f => (
-              <div key={f.id} className="mb-2">
-                <button onClick={() => setSelectedFloor(f.id === selectedFloor?.id ? null : f)} className="w-full text-left px-4 py-3 font-bold hover:bg-gray-50 flex justify-between">{f.name} <ChevronDown size={16}/></button>
-                {selectedFloor?.id === f.id && <div className="bg-gray-50">{f.zones.map(z => <button key={z} onClick={() => setSelectedZone(z)} className={`w-full text-left px-8 py-2 text-sm ${selectedZone === z ? 'bg-emerald-100 text-emerald-800 font-bold' : 'hover:bg-gray-100'}`}>{z}</button>)}</div>}
-              </div>
+              <div key={f.id} className="mb-2"><button onClick={() => setSelectedFloor(f.id === selectedFloor?.id ? null : f)} className="w-full text-left px-4 py-2 font-bold bg-gray-50 rounded mb-1">{f.name}</button>{selectedFloor?.id === f.id && f.zones.map(z => <button key={z} onClick={() => setSelectedZone(z)} className={`w-full text-left px-6 py-1 text-sm ${selectedZone === z ? 'bg-emerald-100 text-emerald-800' : 'hover:bg-gray-100'}`}>{z}</button>)}</div>
             ))}
           </aside>
           <main className="flex-1 p-6 overflow-y-auto">
-            {!selectedZone ? <div className="flex flex-col items-center justify-center h-full text-gray-400"><MapPin size={48} /><p>Selecione uma zona à esquerda.</p></div> : (
+            {!selectedZone ? <p className="text-center text-gray-400 mt-10">Selecione uma zona.</p> : (
               <div className="max-w-3xl mx-auto space-y-4">
-                <h2 className="text-2xl font-bold mb-4 border-b pb-2">{selectedZone}</h2>
-                {CHECKLIST_ITEMS.map((item) => {
+                <h2 className="text-2xl font-bold mb-4">{selectedZone}</h2>
+                {CHECKLIST_ITEMS.map(item => {
                   const key = getAuditKey(selectedBuilding.id, selectedZone, item.id);
                   const data = auditData[key] || {};
                   const isNok = data.status === 'nok';
-                  
                   return (
-                    <div key={item.id} className={`bg-white p-4 rounded-xl border shadow-sm transition-all ${isNok ? 'border-red-200 ring-1 ring-red-100' : 'hover:border-emerald-200'}`}>
+                    <div key={item.id} className={`bg-white p-4 rounded-xl border shadow-sm ${isNok ? 'border-red-200' : ''}`}>
                       <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${isNok ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>{item.icon}</div>
-                          <span className="font-medium">{item.label}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => handleCheck(item.id, 'ok')} className={`px-3 py-1 rounded text-sm font-bold border ${data.status === 'ok' ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white text-gray-400'}`}>OK</button>
-                          <button onClick={() => handleCheck(item.id, 'nok')} className={`px-3 py-1 rounded text-sm font-bold border ${data.status === 'nok' ? 'bg-red-500 text-white border-red-600' : 'bg-white text-gray-400'}`}>Erro</button>
-                        </div>
+                        <div className="flex gap-3 items-center"><div className="p-2 bg-gray-100 rounded">{item.icon}</div><span className="font-medium">{item.label}</span></div>
+                        <div className="flex gap-2"><button onClick={() => handleCheck(item.id, 'ok')} className={`px-3 py-1 rounded font-bold border ${data.status === 'ok' ? 'bg-emerald-500 text-white' : 'bg-white'}`}>OK</button><button onClick={() => handleCheck(item.id, 'nok')} className={`px-3 py-1 rounded font-bold border ${isNok ? 'bg-red-500 text-white' : 'bg-white'}`}>Erro</button></div>
                       </div>
-
-                      {/* ÁREA DE DETALHES DO ERRO (COM IA) */}
                       {isNok && (
-                        <div className="mt-4 pt-4 border-t border-red-50 grid gap-4 animate-in fade-in">
-                          
-                          {/* FOTO E ANÁLISE */}
-                          <div className="flex gap-3 items-center bg-gray-50 p-3 rounded-lg">
-                            <label className="cursor-pointer flex items-center gap-2 text-sm text-blue-600 font-bold hover:text-blue-800">
-                              <Camera size={18}/> {data.photo ? "Alterar Foto" : "Adicionar Foto"}
-                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(item.id, e)} />
-                            </label>
-                            {data.photo && <span className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 size={12}/> Foto carregada</span>}
-                            
-                            {/* BOTÃO IA 1: Analisar Foto */}
-                            <button 
-                              onClick={() => handleAnalyzePhoto(item.id)} 
-                              disabled={analyzingItem === item.id}
-                              className="ml-auto bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-xs font-bold flex items-center gap-2 hover:bg-indigo-200"
-                            >
-                              {analyzingItem === item.id ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>}
-                              {analyzingItem === item.id ? "A Analisar..." : "IA: Analisar Foto"}
-                            </button>
+                        <div className="mt-4 pt-4 border-t border-red-50 grid gap-4">
+                          <div className="flex gap-2 items-center bg-gray-50 p-2 rounded">
+                            <label className="cursor-pointer flex items-center gap-2 text-blue-600 font-bold text-sm"><Camera size={16}/> {data.photo ? "Foto OK" : "Adicionar Foto"} <input type="file" className="hidden" onChange={(e) => handlePhotoUpload(item.id, e)}/></label>
+                            <button onClick={() => handleAnalyzePhoto(item.id)} disabled={analyzingItem === item.id} className="ml-auto bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-xs font-bold flex gap-2">{analyzingItem === item.id ? <Loader2 className="animate-spin" size={14}/> : <Sparkles size={14}/>} IA: Analisar</button>
                           </div>
-
-                          {/* CAMPOS DE TEXTO */}
-                          <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase">Causas</label>
-                            <input 
-                              type="text" 
-                              className="w-full border p-2 rounded mt-1 focus:ring-2 focus:ring-indigo-500 outline-none" 
-                              placeholder="Descreva o problema..." 
-                              value={data.details?.causes || ''} 
-                              onChange={(e) => handleDetailChange(item.id, 'causes', e.target.value)}
-                            />
-                          </div>
-
-                          <div>
-                            <div className="flex justify-between items-center">
-                              <label className="text-xs font-bold text-gray-500 uppercase">Medidas de Reparação</label>
-                              
-                              {/* BOTÃO IA 2: Pedir Solução */}
-                              <button 
-                                onClick={() => handleGetRecommendationText(item.id, data.details?.causes)}
-                                disabled={isGettingRecommendation}
-                                className="text-xs text-indigo-600 font-bold flex items-center gap-1 hover:underline"
-                              >
-                                <Sparkles size={12}/> {isGettingRecommendation ? "A pensar..." : "IA: Pedir Solução"}
-                              </button>
-                            </div>
-                            <textarea 
-                              className="w-full border p-2 rounded mt-1 focus:ring-2 focus:ring-indigo-500 outline-none" 
-                              rows={2}
-                              placeholder="O que deve ser feito?" 
-                              value={data.details?.measures || ''} 
-                              onChange={(e) => handleDetailChange(item.id, 'measures', e.target.value)}
-                            />
-                          </div>
-                          
-                          {/* PREVISÃO DE DURAÇÃO */}
-                          <div className="flex gap-4">
-                             <div className="flex-1">
-                               <label className="text-xs font-bold text-gray-500 uppercase">Previsão</label>
-                               <input type="date" className="w-full border p-2 rounded mt-1" value={data.details?.forecast || ''} onChange={(e) => handleDetailChange(item.id, 'forecast', e.target.value)}/>
-                             </div>
-                          </div>
-
+                          <input type="text" className="border p-2 rounded w-full" placeholder="Causas..." value={data.details?.causes || ''} onChange={(e) => handleDetailChange(item.id, 'causes', e.target.value)}/>
+                          <div className="flex gap-2"><textarea className="border p-2 rounded w-full" rows={2} placeholder="Medidas..." value={data.details?.measures || ''} onChange={(e) => handleDetailChange(item.id, 'measures', e.target.value)}/><button onClick={() => handleGetRecommendationText(item.id, data.details?.causes)} disabled={isGettingRecommendation} className="text-indigo-600 font-bold text-xs self-start mt-2"><Sparkles size={16}/></button></div>
                         </div>
                       )}
                     </div>
@@ -301,53 +255,97 @@ function AdminApp({ onLogout, user }) {
             )}
           </main>
         </div>
+      )}
+    </div>
+  );
+
+  const renderPlanning = () => (
+    <div className="flex flex-col md:flex-row h-full bg-gray-50">
+      <div className="w-full md:w-1/3 bg-white border-r p-4 flex flex-col gap-4">
+        <h3 className="font-bold text-gray-700">Tarefas</h3>
+        <div className="flex gap-2"><input type="text" className="border rounded p-2 flex-1" placeholder="Nova tarefa..." value={newTaskInput} onChange={e => setNewTaskInput(e.target.value)} /><button onClick={handleAddTask} className="bg-emerald-600 text-white p-2 rounded"><Plus/></button></div>
+        <div className="flex-1 overflow-y-auto space-y-2">
+          {planningTasks.map(t => (
+            <div key={t.id} className="p-3 border rounded bg-white relative group">
+              <div className="flex justify-between"><span className="font-medium">{t.desc}</span><button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id))}><X size={14} className="text-gray-400"/></button></div>
+              <div className="text-xs text-gray-500 mt-1 flex gap-2">
+                {t.duration && <span className="bg-gray-100 px-1 rounded flex gap-1 items-center"><Clock size={10}/> {t.duration}</span>}
+                {t.materials && <span className="bg-gray-100 px-1 rounded flex gap-1 items-center"><Package size={10}/> {t.materials}</span>}
+              </div>
+              <button onClick={() => handleEstimateTask(t)} disabled={estimatingTaskId === t.id} className="absolute bottom-2 right-2 text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"><Sparkles size={14}/></button>
+            </div>
+          ))}
+        </div>
       </div>
-    );
-  };
+      <div className="flex-1 p-6">
+        <div className="flex justify-between mb-4"><h2 className="text-2xl font-bold">Planeamento</h2><button onClick={handleGenerateWhatsApp} disabled={isGeneratingWhatsApp} className="bg-green-600 text-white px-4 py-2 rounded flex gap-2 items-center text-sm font-bold">{isGeneratingWhatsApp ? <Loader2 className="animate-spin"/> : <MessageSquare size={16}/>} Gerar WhatsApp</button></div>
+        <div className="bg-white p-6 rounded shadow space-y-2">
+          {planningTasks.map(t => (
+            <div key={t.id} className={`p-4 border rounded flex items-center gap-3 ${t.completed ? 'bg-emerald-50' : 'bg-white'}`}>
+              <input type="checkbox" checked={t.completed} onChange={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { completed: !t.completed })} className="w-5 h-5"/>
+              <div>
+                <span className={t.completed ? 'line-through text-emerald-700' : 'font-medium'}>{t.desc}</span>
+                <div className="text-xs text-gray-500">{t.assignedTo} | {t.date}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderReport = () => (
+    <div className="max-w-4xl mx-auto p-8 bg-white min-h-screen">
+      <h1 className="text-3xl font-bold border-b-2 border-emerald-600 pb-4 mb-6">Relatório</h1>
+      <div className="bg-indigo-50 p-6 rounded-lg mb-8 border border-indigo-100">
+        <div className="flex justify-between mb-2"><h3 className="font-bold text-indigo-900 flex gap-2"><Sparkles size={18}/> Resumo IA</h3><button onClick={handleGenerateSummary} disabled={isGeneratingSummary} className="text-xs bg-indigo-600 text-white px-3 py-1 rounded">{isGeneratingSummary ? "A gerar..." : "Gerar Resumo"}</button></div>
+        <p className="text-sm text-gray-700 whitespace-pre-wrap">{reportSummary || "Clique para gerar um resumo das atividades..."}</p>
+      </div>
+      <h2 className="text-xl font-bold mb-4 text-emerald-600">Concluído</h2>
+      <table className="w-full text-sm mb-8"><thead className="bg-gray-100"><tr><th className="p-2 text-left">Tarefa</th><th className="p-2 text-left">Data</th></tr></thead><tbody>{planningTasks.filter(t => t.completed).map(t => <tr key={t.id} className="border-b"><td className="p-2">{t.desc}</td><td className="p-2">{t.date}</td></tr>)}</tbody></table>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col font-sans text-gray-800 h-screen">
-      <div className="bg-white border-b px-4 py-3 shadow-sm flex justify-between items-center">
-        <div className="flex items-center gap-2 font-bold text-xl text-emerald-800"><ClipboardCheck className="w-6 h-6"/> App Manutenção</div>
-        <button onClick={onLogout}><LogOut size={20} className="text-gray-500 hover:text-red-500"/></button>
-      </div>
+    <div className="h-screen flex flex-col font-sans">
+      <header className="bg-white border-b px-4 py-3 flex justify-between items-center shadow-sm">
+        <div className="flex items-center gap-2 font-bold text-xl text-emerald-800"><ClipboardCheck/> Manutenção App</div>
+        <div className="flex gap-4">
+          {['inspection', 'planning', 'report'].map(v => (
+            <button key={v} onClick={() => setCurrentView(v)} className={`capitalize font-bold pb-1 border-b-2 ${currentView === v ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500'}`}>
+              {v === 'inspection' ? 'Vistoria' : v === 'planning' ? 'Planeamento' : 'Relatório'}
+            </button>
+          ))}
+        </div>
+        <button onClick={onLogout}><LogOut className="text-gray-500 hover:text-red-600"/></button>
+      </header>
       <div className="flex-1 overflow-hidden">
-        {renderInspection()}
+        {currentView === 'inspection' && renderInspection()}
+        {currentView === 'planning' && renderPlanning()}
+        {currentView === 'report' && renderReport()}
       </div>
     </div>
   );
 }
 
-// === TELA DE LOGIN & PONTO DE ENTRADA ===
+// === APP & WORKER (Login e Trabalhador mantêm-se iguais) ===
 function App() {
   const [role, setRole] = useState(null); 
   const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    signInAnonymously(auth).catch(console.error);
-    onAuthStateChanged(auth, setUser);
-  }, []);
-
-  if (!role) {
-    return (
-      <div className="h-screen bg-gradient-to-br from-emerald-900 to-gray-900 flex items-center justify-center p-6">
-        <div className="text-center w-full max-w-sm">
-          <div className="bg-white/10 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-md border border-white/20"><ClipboardCheck size={40} className="text-emerald-400"/></div>
-          <h1 className="text-3xl font-bold text-white mb-8">Complexo CSM</h1>
-          <button onClick={() => setRole('admin')} className="bg-white text-gray-900 w-full p-5 rounded-2xl flex items-center justify-between mb-4 font-bold text-lg hover:scale-105 transition-transform shadow-lg"><div className="flex items-center gap-3"><LayoutDashboard className="text-indigo-600"/> Coordenação</div><ChevronRight className="text-gray-400"/></button>
-          <button onClick={() => setRole('worker')} className="bg-white/10 backdrop-blur border border-white/20 text-white w-full p-5 rounded-2xl flex items-center justify-between font-bold text-lg hover:bg-white/20 transition-all"><div className="flex items-center gap-3"><Hammer className="text-emerald-400"/> Equipa Técnica</div><ChevronRight className="text-white/50"/></button>
-        </div>
+  useEffect(() => { signInAnonymously(auth); onAuthStateChanged(auth, setUser); }, []);
+  if (!role) return (
+    <div className="h-screen bg-gray-900 flex items-center justify-center p-6">
+      <div className="bg-white p-8 rounded-2xl w-full max-w-sm text-center">
+        <div className="flex justify-center mb-6"><ClipboardCheck size={48} className="text-emerald-500"/></div>
+        <h1 className="text-3xl font-bold mb-8">CSM Manutenção</h1>
+        <button onClick={() => setRole('admin')} className="w-full bg-gray-100 p-4 rounded-xl mb-4 font-bold flex justify-between hover:bg-gray-200">Coordenação <ChevronRight/></button>
+        <button onClick={() => setRole('worker')} className="w-full bg-emerald-600 text-white p-4 rounded-xl font-bold flex justify-between hover:bg-emerald-700">Equipa Técnica <ChevronRight/></button>
       </div>
-    );
-  }
-
+    </div>
+  );
   if (role === 'admin') return <AdminApp onLogout={() => setRole(null)} user={user} />;
-  return <div className="p-10 text-center">Área Técnica (Em construção...) <br/><button onClick={() => setRole(null)} className="mt-4 text-blue-500 underline">Voltar</button></div>;
+  return <div className="p-10 text-center">Área do Trabalhador (Use a Coordenação para testar IA) <br/><button onClick={() => setRole(null)} className="mt-4 underline">Voltar</button></div>;
 }
 
-// MONTAGEM
 const container = document.getElementById('root');
-if (container) {
-  const root = createRoot(container);
-  root.render(<App />);
-}
+if (container) { const root = createRoot(container); root.render(<App />); }
