@@ -7,7 +7,8 @@ import {
   Flag, Calendar, Users, FileText, Camera, Printer, Trash2, TreePine, 
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
-  User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact
+  User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
+  RefreshCw
 } from 'lucide-react';
 
 // FIREBASE IMPORTS
@@ -19,6 +20,7 @@ import {
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 // --- CONFIGURAÇÃO FIREBASE ---
+// Mantenha "demo" se não tiver as chaves do Firebase, mas para guardar dados reais precisa delas.
 const firebaseConfig = { 
     apiKey: "demo", 
     projectId: "demo" 
@@ -28,8 +30,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = 'default-app-id';
 
-// --- CONFIGURAÇÃO GEMINI API ---
-const apiKey = ""; // <--- COLE A SUA CHAVE GEMINI AQUI
+// --- CONFIGURAÇÃO GEMINI API (Inserida) ---
+const apiKey = "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE"; 
 
 // --- FUNÇÕES AUXILIARES IA ---
 async function callGeminiVision(base64Image, prompt) {
@@ -58,22 +60,22 @@ async function callGeminiText(prompt) {
 
 // --- DADOS ---
 const CHECKLIST_ITEMS = [
-  { id: 'limpeza', label: 'Limpeza Geral / Lixo', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
-  { id: 'vidros', label: 'Vidros e Fachadas', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
-  { id: 'duches', label: 'Duches / Torneiras', category: 'Canalização', icon: <Droplets className="w-4 h-4" /> },
-  { id: 'wc', label: 'Instalações Sanitárias', category: 'Canalização', icon: <CheckCircle2 className="w-4 h-4" /> },
-  { id: 'iluminacao', label: 'Iluminação', category: 'Elétrica', icon: <Lightbulb className="w-4 h-4" /> },
-  { id: 'eletrica', label: 'Tomadas / Rede / Wifi', category: 'Elétrica', icon: <Wifi className="w-4 h-4" /> },
-  { id: 'portas', label: 'Portas / Fechaduras', category: 'Civil', icon: <DoorOpen className="w-4 h-4" /> },
-  { id: 'piso', label: 'Piso / Pavimento', category: 'Civil', icon: <Footprints className="w-4 h-4" /> },
-  { id: 'paredes', label: 'Paredes / Pintura', category: 'Civil', icon: <PaintBucket className="w-4 h-4" /> },
-  { id: 'teto', label: 'Tetos Falsos', category: 'Civil', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { id: 'sinaletica', label: 'Sinalética', category: 'Geral', icon: <AlertTriangle className="w-4 h-4" /> },
-  { id: 'serralharia', label: 'Serralharia / Portões', category: 'Geral', icon: <Wrench className="w-4 h-4" /> },
-  { id: 'fitness', label: 'Material Desportivo/Fitness', category: 'Equipamento', icon: <Hammer className="w-4 h-4" /> },
-  { id: 'relvado_corte', label: 'Relvado (Corte)', category: 'Espaços Verdes', icon: <TreePine className="w-4 h-4" /> },
-  { id: 'relvado_rega', label: 'Sistema de Rega', category: 'Espaços Verdes', icon: <Droplets className="w-4 h-4" /> },
-  { id: 'relvado_adubacao', label: 'Adubação / Tratamento', category: 'Espaços Verdes', icon: <TreePine className="w-4 h-4" /> },
+  { id: 'limpeza', label: 'Limpeza Geral / Lixo', category: 'Limpeza', icon: <ClipboardCheck size={16} /> },
+  { id: 'vidros', label: 'Vidros e Fachadas', category: 'Limpeza', icon: <ClipboardCheck size={16} /> },
+  { id: 'duches', label: 'Duches / Torneiras', category: 'Canalização', icon: <Droplets size={16} /> },
+  { id: 'wc', label: 'Instalações Sanitárias', category: 'Canalização', icon: <CheckCircle2 size={16} /> },
+  { id: 'iluminacao', label: 'Iluminação', category: 'Elétrica', icon: <Lightbulb size={16} /> },
+  { id: 'eletrica', label: 'Tomadas / Rede / Wifi', category: 'Elétrica', icon: <Wifi size={16} /> },
+  { id: 'portas', label: 'Portas / Fechaduras', category: 'Civil', icon: <DoorOpen size={16} /> },
+  { id: 'piso', label: 'Piso / Pavimento', category: 'Civil', icon: <Footprints size={16} /> },
+  { id: 'paredes', label: 'Paredes / Pintura', category: 'Civil', icon: <PaintBucket size={16} /> },
+  { id: 'teto', label: 'Tetos Falsos', category: 'Civil', icon: <LayoutDashboard size={16} /> },
+  { id: 'sinaletica', label: 'Sinalética', category: 'Geral', icon: <AlertTriangle size={16} /> },
+  { id: 'serralharia', label: 'Serralharia / Portões', category: 'Geral', icon: <Wrench size={16} /> },
+  { id: 'fitness', label: 'Material Desportivo/Fitness', category: 'Equipamento', icon: <Hammer size={16} /> },
+  { id: 'relvado_corte', label: 'Relvado (Corte)', category: 'Espaços Verdes', icon: <TreePine size={16} /> },
+  { id: 'relvado_rega', label: 'Sistema de Rega', category: 'Espaços Verdes', icon: <Droplets size={16} /> },
+  { id: 'relvado_adubacao', label: 'Adubação / Tratamento', category: 'Espaços Verdes', icon: <TreePine size={16} /> },
 ];
 
 const BUILDINGS_DATA = [
@@ -92,18 +94,19 @@ function AdminApp({ onLogout, user }) {
   const [selectedZone, setSelectedZone] = useState(null);
   const [inspectionDate, setInspectionDate] = useState(new Date().toISOString().split('T')[0]); 
   
-  // Dados de Vistoria
+  // Vistoria
   const [auditData, setAuditData] = useState({});
   const [analyzingItem, setAnalyzingItem] = useState(null);
   const [isGettingRecommendation, setIsGettingRecommendation] = useState(false);
 
-  // Dados de Planeamento
+  // Planeamento
   const [planningTasks, setPlanningTasks] = useState([]);
   const [newTaskInput, setNewTaskInput] = useState('');
   const [estimatingTaskId, setEstimatingTaskId] = useState(null);
   const [isGeneratingWhatsApp, setIsGeneratingWhatsApp] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
-  // Dados de Relatório
+  // Relatório
   const [reportSummary, setReportSummary] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
@@ -119,13 +122,33 @@ function AdminApp({ onLogout, user }) {
     return () => unsubscribe();
   }, [user]);
 
-  // --- FUNÇÕES DE VISTORIA (IA) ---
+  // --- FUNÇÕES DE VISTORIA (SYNC COM PLANEAMENTO) ---
   const getAuditKey = (bid, zone, iid) => `${bid}-${zone}-${iid}`;
   
-  const handleCheck = (iid, s) => { 
+  const handleCheck = async (iid, s) => { 
     if (selectedBuilding && selectedZone) {
       const key = getAuditKey(selectedBuilding.id, selectedZone, iid);
       setAuditData(p => ({ ...p, [key]: { ...p[key], status: s, date: inspectionDate, details: s === 'nok' ? { causes: '', measures: '', forecast: '' } : null } })); 
+      
+      // *** AUTOMATIZAÇÃO: SE FOR ERRO, CRIA TAREFA NO PLANEAMENTO ***
+      if (s === 'nok') {
+          const itemLabel = CHECKLIST_ITEMS.find(i => i.id === iid)?.label;
+          const taskDesc = `Reparar ${itemLabel} em ${selectedBuilding.name} - ${selectedZone}`;
+          // Verifica se já existe para não duplicar
+          const exists = planningTasks.find(t => t.desc === taskDesc && !t.completed);
+          if (!exists) {
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+                  desc: taskDesc, 
+                  completed: false, 
+                  assignedTo: '', 
+                  startDate: '',
+                  duration: '',
+                  materials: '',
+                  cat: 'Vistoria',
+                  date: inspectionDate
+              });
+          }
+      }
     }
   };
 
@@ -167,16 +190,17 @@ function AdminApp({ onLogout, user }) {
     if (f) setAuditData(p => ({ ...p, [getAuditKey(selectedBuilding.id, selectedZone, iid)]: { ...p[getAuditKey(selectedBuilding.id, selectedZone, iid)], photo: URL.createObjectURL(f) } })) 
   };
 
-  // --- FUNÇÕES DE PLANEAMENTO (IA AVANÇADA) ---
+  // --- FUNÇÕES DE PLANEAMENTO ---
   const handleAddTask = async () => {
     if (!newTaskInput) return;
     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
         desc: newTaskInput, 
         completed: false, 
-        assignedTo: '', // Equipa vazia inicialmente
-        startDate: new Date().toISOString().split('T')[0], // Data de hoje por defeito
+        assignedTo: '', 
+        startDate: new Date().toISOString().split('T')[0], 
         duration: '',
         materials: '',
+        cat: 'Manual',
         date: new Date().toISOString()
     });
     setNewTaskInput('');
@@ -186,29 +210,44 @@ function AdminApp({ onLogout, user }) {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id), { [field]: value });
   };
 
-  // CÁLCULO DE TEMPO COM IA BASEADO NA EQUIPA
+  // IMPORTAR CSV
+  const handleFileImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        const text = event.target.result;
+        const lines = text.split('\n');
+        let count = 0;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            const cols = line.split(line.includes(';') ? ';' : ',');
+            if (cols.length >= 1) {
+                const desc = cols[0].trim().replace(/^"|"$/g, '');
+                if (desc) {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc, cat: 'Importado', completed: false, date: new Date().toISOString() });
+                    count++;
+                }
+            }
+        }
+        setIsImporting(false);
+        alert(`${count} tarefas importadas!`);
+    };
+    reader.readAsText(file);
+  };
+
+  // IA: CALCULA TEMPO E MATERIAIS
   const handleEstimateTask = async (task) => {
     setEstimatingTaskId(task.id);
-    const equipa = task.assignedTo || "1 pessoa (padrão)";
-    const prompt = `
-      Sou gestor de manutenção.
-      Tarefa: "${task.desc}"
-      Equipa que vai executar: "${equipa}".
-      
-      Calcula a duração estimada considerando o tamanho desta equipa.
-      Se for uma equipa grande, o tempo deve ser menor.
-      
-      Responde APENAS JSON: {"duration": "ex: 2 horas", "materials": "ex: Tinta, rolos"}
-    `;
-    
+    const equipa = task.assignedTo || "1 pessoa";
+    const prompt = `Tarefa: "${task.desc}". Equipa: "${equipa}". Calcula duração e materiais. JSON: {"duration": "...", "materials": "..."}`;
     const resultText = await callGeminiText(prompt);
     if (resultText) {
       try {
         const res = JSON.parse(resultText.replace(/```json|```/g, '').trim());
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { 
-            duration: res.duration, 
-            materials: res.materials 
-        });
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { duration: res.duration, materials: res.materials });
       } catch (e) { console.error(e); }
     }
     setEstimatingTaskId(null);
@@ -216,18 +255,17 @@ function AdminApp({ onLogout, user }) {
 
   const handleGenerateWhatsApp = async () => {
     setIsGeneratingWhatsApp(true);
-    const tasks = planningTasks.filter(t => !t.completed).map(t => `- ${t.desc} (${t.assignedTo || 'Geral'}) - Início: ${t.startDate || 'ND'}`).join('\n');
-    const prompt = `Cria msg WhatsApp para equipa com estas tarefas:\n${tasks}\nUsa emojis e sê motivador.`;
+    const tasks = planningTasks.filter(t => !t.completed).map(t => `- ${t.desc} (${t.assignedTo || '?'})`).join('\n');
+    const prompt = `Cria msg WhatsApp para equipa:\n${tasks}`;
     const text = await callGeminiText(prompt);
-    if (text) alert("Copiado para a área de transferência:\n\n" + text);
+    if (text) alert("Copiado:\n\n" + text);
     setIsGeneratingWhatsApp(false);
   };
 
-  // --- FUNÇÕES DE RELATÓRIO (IA) ---
   const handleGenerateSummary = async () => {
     setIsGeneratingSummary(true);
-    const done = planningTasks.filter(t => t.completed).map(t => `${t.desc} (Feito por: ${t.assignedTo})`).join(', ');
-    const prompt = `Cria um relatório diário de obras. Obras concluídas: ${done}. Destaca a produtividade. Tom profissional.`;
+    const done = planningTasks.filter(t => t.completed).map(t => `${t.desc} (${t.duration})`).join(', ');
+    const prompt = `Relatório obras: ${done}.`;
     const text = await callGeminiText(prompt);
     if (text) setReportSummary(text);
     setIsGeneratingSummary(false);
@@ -290,95 +328,72 @@ function AdminApp({ onLogout, user }) {
       <div className="w-full md:w-1/3 bg-white border-r p-4 flex flex-col gap-4">
         <h3 className="font-bold text-gray-700 flex gap-2 items-center"><ListTodo size={20}/> Adicionar Tarefa</h3>
         <div className="flex gap-2"><input type="text" className="border rounded p-2 flex-1 shadow-sm" placeholder="Nova tarefa..." value={newTaskInput} onChange={e => setNewTaskInput(e.target.value)} /><button onClick={handleAddTask} className="bg-emerald-600 text-white p-2 rounded shadow-sm hover:bg-emerald-700"><Plus/></button></div>
-        <div className="bg-blue-50 p-3 rounded text-sm text-blue-800 border border-blue-100">
-            <p className="font-bold mb-1">Dica:</p>
-            Defina a equipa e a data de início em cada tarefa para a IA calcular o tempo corretamente.
+        
+        {/* BOTÃO IMPORTAR EXCEL/CSV */}
+        <label className="w-full bg-blue-50 text-blue-600 border border-blue-200 p-2 rounded flex items-center justify-center gap-2 cursor-pointer hover:bg-blue-100 font-bold text-sm">
+            <input type="file" accept=".csv,.txt" className="hidden" onChange={handleFileImport} disabled={isImporting} />
+            {isImporting ? <Loader2 className="animate-spin" size={16}/> : <UploadCloud size={16}/>} Importar Excel/CSV
+        </label>
+
+        <div className="flex-1 overflow-y-auto space-y-2">
+          {planningTasks.map(t => (
+            <div key={t.id} className="p-3 border rounded bg-white relative group">
+              <div className="flex justify-between"><span className="font-medium">{t.desc}</span><button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id))}><X size={14} className="text-gray-400"/></button></div>
+              <div className="text-xs text-gray-500 mt-1 flex flex-col gap-1">
+                 <span className="flex items-center gap-1"><Users size={10}/> {t.assignedTo || 'Sem equipa'}</span>
+                 <span className="bg-yellow-50 text-yellow-700 px-1 rounded inline-block">{t.cat || 'Geral'}</span>
+              </div>
+            </div>
+          ))}
         </div>
-        <button onClick={handleGenerateWhatsApp} disabled={isGeneratingWhatsApp} className="mt-auto bg-green-600 text-white px-4 py-3 rounded-xl flex gap-2 items-center justify-center font-bold shadow hover:bg-green-700">{isGeneratingWhatsApp ? <Loader2 className="animate-spin"/> : <MessageSquare size={18}/>} Gerar Escala (WhatsApp)</button>
       </div>
       
       <div className="flex-1 p-6 overflow-y-auto">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">Quadro de Planeamento</h2>
         <div className="space-y-4">
           {planningTasks.filter(t => !t.completed).map(t => (
-            <div key={t.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 relative group hover:border-indigo-300 transition-all">
-              <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id))} className="absolute top-3 right-3 text-gray-300 hover:text-red-500"><X size={16}/></button>
+            <div key={t.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+              <div className="mb-3 font-bold text-lg text-gray-800">{t.desc}</div>
               
-              <div className="mb-3">
-                  <span className="font-bold text-lg text-gray-800">{t.desc}</span>
-              </div>
-
-              {/* GRELHA DE DADOS DA TAREFA */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                  
-                  {/* CAMPO 1: DATA INÍCIO */}
                   <div>
-                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1"><Calendar size={10}/> Data Início</label>
-                      <input 
-                        type="date" 
-                        className="w-full bg-white border border-gray-200 rounded p-1 text-sm mt-1" 
-                        value={t.startDate || ''} 
-                        onChange={(e) => handleUpdateTask(t.id, 'startDate', e.target.value)}
-                      />
+                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1"><Calendar size={10}/> Início</label>
+                      <input type="date" className="w-full bg-white border border-gray-200 rounded p-1 text-sm mt-1" value={t.startDate || ''} onChange={(e) => handleUpdateTask(t.id, 'startDate', e.target.value)}/>
                   </div>
-
-                  {/* CAMPO 2: EQUIPA (FUNCIONÁRIOS) */}
                   <div>
-                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1"><Users size={10}/> Equipa / Funcionários</label>
-                      <input 
-                        type="text" 
-                        placeholder="Ex: João, Maria..." 
-                        className="w-full bg-white border border-gray-200 rounded p-1 text-sm mt-1" 
-                        value={t.assignedTo || ''} 
-                        onChange={(e) => handleUpdateTask(t.id, 'assignedTo', e.target.value)}
-                      />
+                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1"><Users size={10}/> Equipa</label>
+                      <input type="text" placeholder="Quem faz?" className="w-full bg-white border border-gray-200 rounded p-1 text-sm mt-1" value={t.assignedTo || ''} onChange={(e) => handleUpdateTask(t.id, 'assignedTo', e.target.value)}/>
                   </div>
-
-                  {/* CAMPO 3: DURAÇÃO (CALCULADA OU MANUAL) */}
                   <div className="col-span-2">
                       <div className="flex justify-between items-center">
-                          <label className="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-1"><Clock size={10}/> Duração / Prazo</label>
-                          
-                          {/* BOTÃO MÁGICO: CALCULAR TEMPO */}
-                          <button 
-                            onClick={() => handleEstimateTask(t)} 
-                            disabled={estimatingTaskId === t.id}
-                            className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200 hover:bg-indigo-200 flex items-center gap-1"
-                          >
-                            {estimatingTaskId === t.id ? <Loader2 size={10} className="animate-spin"/> : <Sparkles size={10}/>}
-                            IA: Calcular Tempo
+                          <label className="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-1"><Clock size={10}/> Duração</label>
+                          <button onClick={() => handleEstimateTask(t)} disabled={estimatingTaskId === t.id} className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200 hover:bg-indigo-200 flex items-center gap-1">
+                            {estimatingTaskId === t.id ? <Loader2 size={10} className="animate-spin"/> : <Sparkles size={10}/>} IA: Calcular
                           </button>
                       </div>
-                      <input 
-                        type="text" 
-                        placeholder="Ex: 2 dias (Calculado pela IA ou Manual)" 
-                        className="w-full bg-white border border-indigo-100 rounded p-1 text-sm mt-1 font-medium text-indigo-900" 
-                        value={t.duration || ''} 
-                        onChange={(e) => handleUpdateTask(t.id, 'duration', e.target.value)}
-                      />
+                      <input type="text" placeholder="Tempo estimado..." className="w-full bg-white border border-indigo-100 rounded p-1 text-sm mt-1 font-medium text-indigo-900" value={t.duration || ''} onChange={(e) => handleUpdateTask(t.id, 'duration', e.target.value)}/>
                   </div>
-              </div>
-              
-              <div className="mt-3 flex justify-end">
-                 <button onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { completed: true })} className="text-sm text-emerald-600 hover:bg-emerald-50 px-3 py-1 rounded font-bold border border-emerald-200 flex items-center gap-2"><CheckCircle2 size={14}/> Concluir</button>
+                  <div className="col-span-2">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1"><Package size={10}/> Materiais</label>
+                      <input type="text" placeholder="Materiais..." className="w-full bg-white border border-gray-200 rounded p-1 text-sm mt-1" value={t.materials || ''} onChange={(e) => handleUpdateTask(t.id, 'materials', e.target.value)}/>
+                  </div>
               </div>
             </div>
           ))}
-          {planningTasks.filter(t => !t.completed).length === 0 && <p className="text-gray-400 text-center italic mt-10">Tudo limpo! Adicione tarefas à esquerda.</p>}
         </div>
       </div>
     </div>
   );
 
   const renderReport = () => (
-    <div className="max-w-4xl mx-auto p-8 bg-white min-h-screen">
-      <h1 className="text-3xl font-bold border-b-2 border-emerald-600 pb-4 mb-6">Relatório</h1>
+    <div className="max-w-5xl mx-auto p-8 bg-white min-h-screen">
+      <h1 className="text-3xl font-bold border-b-2 border-emerald-600 pb-4 mb-6">Relatório Detalhado</h1>
       <div className="bg-indigo-50 p-6 rounded-lg mb-8 border border-indigo-100">
         <div className="flex justify-between mb-2"><h3 className="font-bold text-indigo-900 flex gap-2"><Sparkles size={18}/> Resumo IA</h3><button onClick={handleGenerateSummary} disabled={isGeneratingSummary} className="text-xs bg-indigo-600 text-white px-3 py-1 rounded">{isGeneratingSummary ? "A gerar..." : "Gerar Resumo"}</button></div>
-        <p className="text-sm text-gray-700 whitespace-pre-wrap">{reportSummary || "Clique para gerar um resumo das atividades..."}</p>
+        <p className="text-sm text-gray-700 whitespace-pre-wrap">{reportSummary || "Clique para gerar um resumo..."}</p>
       </div>
-      <h2 className="text-xl font-bold mb-4 text-emerald-600">Concluído</h2>
-      <table className="w-full text-sm mb-8"><thead className="bg-gray-100"><tr><th className="p-2 text-left">Tarefa</th><th className="p-2 text-left">Equipa</th><th className="p-2 text-left">Data</th></tr></thead><tbody>{planningTasks.filter(t => t.completed).map(t => <tr key={t.id} className="border-b"><td className="p-2">{t.desc}</td><td className="p-2 text-gray-500">{t.assignedTo}</td><td className="p-2">{t.date}</td></tr>)}</tbody></table>
+      <h2 className="text-xl font-bold mb-4 text-emerald-600">Trabalhos Concluídos</h2>
+      <table className="w-full text-sm border-collapse"><thead className="bg-gray-100"><tr><th className="p-2 text-left border">Tarefa</th><th className="p-2 text-left border">Equipa</th><th className="p-2 text-left border">Tempo</th><th className="p-2 text-left border">Materiais</th><th className="p-2 text-center border">Fim</th></tr></thead><tbody>{planningTasks.filter(t => t.completed).map(t => <tr key={t.id} className="border-b"><td className="p-2 border">{t.desc}</td><td className="p-2 border">{t.assignedTo}</td><td className="p-2 border">{t.duration}</td><td className="p-2 border">{t.materials}</td><td className="p-2 border text-center text-xs">{t.completedAt ? t.completedAt.split('T')[0] : 'Hoje'}</td></tr>)}</tbody></table>
     </div>
   );
 
@@ -386,25 +401,106 @@ function AdminApp({ onLogout, user }) {
     <div className="h-screen flex flex-col font-sans">
       <header className="bg-white border-b px-4 py-3 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-2 font-bold text-xl text-emerald-800"><ClipboardCheck/> Manutenção App</div>
-        <div className="flex gap-4">
-          {['inspection', 'planning', 'report'].map(v => (
-            <button key={v} onClick={() => setCurrentView(v)} className={`capitalize font-bold pb-1 border-b-2 ${currentView === v ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500'}`}>
-              {v === 'inspection' ? 'Vistoria' : v === 'planning' ? 'Planeamento' : 'Relatório'}
-            </button>
-          ))}
-        </div>
+        <div className="flex gap-4">{['inspection', 'planning', 'report'].map(v => (<button key={v} onClick={() => setCurrentView(v)} className={`capitalize font-bold pb-1 border-b-2 ${currentView === v ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-500'}`}>{v === 'inspection' ? 'Vistoria' : v === 'planning' ? 'Planeamento' : 'Relatório'}</button>))}</div>
         <button onClick={onLogout}><LogOut className="text-gray-500 hover:text-red-600"/></button>
       </header>
-      <div className="flex-1 overflow-hidden">
-        {currentView === 'inspection' && renderInspection()}
-        {currentView === 'planning' && renderPlanning()}
-        {currentView === 'report' && renderReport()}
-      </div>
+      <div className="flex-1 overflow-hidden">{currentView === 'inspection' && renderInspection()}{currentView === 'planning' && renderPlanning()}{currentView === 'report' && renderReport()}</div>
     </div>
   );
 }
 
-// === APP & WORKER ===
+// === WORKER APP ===
+function WorkerApp({ onLogout, user }) {
+  const [selectedWorker, setSelectedWorker] = useState(localStorage.getItem('workerName') || '');
+  const [inputName, setInputName] = useState(''); 
+  const [tasks, setTasks] = useState([]);
+  const [newTaskDesc, setNewTaskDesc] = useState('');
+  const [newReportPhoto, setNewReportPhoto] = useState(null);
+  
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        fetchedTasks.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        setTasks(fetchedTasks);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleLogin = () => { if (inputName.trim()) { const name = inputName.trim(); setSelectedWorker(name); localStorage.setItem('workerName', name); } };
+  
+  // NOVA FUNÇÃO: REPORTAR PROBLEMA
+  const handleReportIssue = async () => {
+      if(!newTaskDesc) return;
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+          desc: newTaskDesc, 
+          cat: 'Detetado em Obra', 
+          date: new Date().toISOString().split('T')[0],
+          completed: false,
+          initialPhoto: newReportPhoto
+      });
+      setNewTaskDesc('');
+      setNewReportPhoto(null);
+      alert("Reportado!");
+  };
+
+  // NOVA FUNÇÃO: CONCLUIR COM FOTO OBRIGATÓRIA
+  const handleCompleteWithPhoto = async (task, file) => {
+      if(!file) return;
+      const photoUrl = URL.createObjectURL(file); // Em produção, upload para storage real
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { 
+          completed: true, 
+          completionPhoto: photoUrl,
+          completedAt: new Date().toISOString()
+      });
+  };
+
+  if (!selectedWorker) {
+    return (
+      <div className="h-screen bg-gray-900 flex items-center justify-center p-6"><div className="bg-white p-8 rounded-2xl w-full max-w-sm text-center"><h1 className="text-3xl font-bold mb-3">Área Técnica</h1><input type="text" placeholder="O teu nome" className="w-full p-4 border rounded-xl mb-4" value={inputName} onChange={(e) => setInputName(e.target.value)} /><button onClick={handleLogin} className="w-full bg-emerald-600 text-white p-4 rounded-xl font-bold">Entrar</button></div></div>
+    );
+  }
+
+  const myTasks = tasks.filter(t => !t.completed);
+  return (
+     <div className="min-h-screen bg-gray-50 pb-24 font-sans p-5">
+        <header className="flex justify-between items-center mb-6"><h2 className="font-bold text-xl">{selectedWorker}</h2><button onClick={onLogout} className="text-gray-500"><LogOut /></button></header>
+        
+        {/* ÁREA DE REPORTAR NOVO PROBLEMA */}
+        <div className="bg-white p-4 rounded-xl border border-emerald-200 mb-6 shadow-sm">
+            <h3 className="font-bold text-emerald-800 mb-2 flex items-center gap-2"><AlertTriangle size={16}/> Detetou algo errado?</h3>
+            <input type="text" className="w-full border p-2 rounded mb-2" placeholder="Descreva o problema..." value={newTaskDesc} onChange={e=>setNewTaskDesc(e.target.value)} />
+            <div className="flex gap-2">
+                <label className="bg-gray-100 text-gray-600 px-3 py-2 rounded flex-1 text-center cursor-pointer flex items-center justify-center gap-2 text-sm font-bold"><Camera size={16}/> {newReportPhoto ? "Foto OK" : "Foto"} <input type="file" className="hidden" onChange={e => setNewReportPhoto(URL.createObjectURL(e.target.files[0]))} /></label>
+                <button onClick={handleReportIssue} className="bg-emerald-600 text-white px-4 py-2 rounded flex-1 font-bold">Reportar</button>
+            </div>
+        </div>
+
+        <div className="space-y-4">
+           {myTasks.map(task => (
+             <div key={task.id} className="bg-white p-5 rounded-2xl border shadow-sm">
+                <div className="flex justify-between mb-2"><span className="text-xs bg-gray-100 px-2 py-1 rounded font-bold uppercase text-gray-500">{task.cat || 'Geral'}</span><span className="text-xs text-gray-400">{task.date}</span></div>
+                <h4 className="font-bold text-lg mb-2">{task.desc}</h4>
+                
+                {/* DADOS PARA O TRABALHADOR VER */}
+                <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded mb-4 grid grid-cols-2 gap-2">
+                    <div><span className="block text-[10px] font-bold uppercase text-gray-400">Início</span>{task.startDate || '--'}</div>
+                    <div><span className="block text-[10px] font-bold uppercase text-gray-400">Duração</span>{task.duration || '--'}</div>
+                    <div className="col-span-2"><span className="block text-[10px] font-bold uppercase text-gray-400">Materiais</span>{task.materials || '--'}</div>
+                </div>
+
+                <label className="w-full bg-emerald-100 text-emerald-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer hover:bg-emerald-200 transition-colors">
+                    <Camera size={18}/> Foto Final & Concluir
+                    <input type="file" className="hidden" onChange={(e) => handleCompleteWithPhoto(task, e.target.files[0])} />
+                </label>
+             </div>
+           ))}
+        </div>
+     </div>
+  );
+}
+
 function App() {
   const [role, setRole] = useState(null); 
   const [user, setUser] = useState(null);
@@ -420,7 +516,7 @@ function App() {
     </div>
   );
   if (role === 'admin') return <AdminApp onLogout={() => setRole(null)} user={user} />;
-  return <div className="p-10 text-center">Área do Trabalhador<br/><button onClick={() => setRole(null)} className="mt-4 underline">Voltar</button></div>;
+  return <WorkerApp onLogout={() => setRole(null)} user={user} />;
 }
 
 const container = document.getElementById('root');
