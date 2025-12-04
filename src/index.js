@@ -16,41 +16,36 @@ import {
   getFirestore, collection, onSnapshot, 
   addDoc, deleteDoc, updateDoc, doc, query, setDoc, getDoc 
 } from 'firebase/firestore';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-// --- FIREBASE CONFIG ---
-// IMPORTANTE: Para a app guardar dados de verdade, tem de colocar as suas chaves aqui.
-// Se deixar como está ("demo"), a app abre mas não guarda nada permanentemente.
+// --- CONFIGURAÇÃO FIREBASE ---
 const firebaseConfig = { 
     apiKey: "demo", 
     projectId: "demo" 
 };
-
-// Inicialização da App
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = 'default-app-id';
 
-// --- CONFIGURAÇÃO GEMINI API ---
-const apiKey = ""; // Insira a sua chave Gemini aqui para a IA funcionar
+// --- CONFIGURAÇÃO GEMINI API (COLOQUE A SUA CHAVE AQUI) ---
+const apiKey = "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE";
 
-// --- FUNÇÕES AUXILIARES IA ---
+// --- FUNÇÕES DE IA ---
 async function callGeminiVision(base64Image, prompt) {
-  if (!apiKey) { alert("API Key não configurada."); return null; }
+  if (!apiKey) { alert("Falta a API Key do Gemini no código!"); return null; }
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: base64Image } }] }] })
     });
-    if (!response.ok) throw new Error('Falha API');
     const data = await response.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text;
   } catch (error) { console.error(error); return null; }
 }
 
 async function callGeminiText(prompt) {
-  if (!apiKey) return null;
+  if (!apiKey) { alert("Falta a API Key do Gemini!"); return null; }
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -61,7 +56,7 @@ async function callGeminiText(prompt) {
   } catch (error) { return null; }
 }
 
-// --- DADOS ESTÁTICOS ---
+// --- DADOS ---
 const CHECKLIST_ITEMS = [
   { id: 'limpeza', label: 'Limpeza Geral / Lixo', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
   { id: 'vidros', label: 'Vidros e Fachadas', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
@@ -89,315 +84,268 @@ const BUILDINGS_DATA = [
   { id: 'lar', name: 'Lar / Residência', floors: [ { id: 'lp0', name: 'Piso 0', zones: ['Sala de Convívio', 'Sala do Volante', 'Balneários', 'Quarto Serviço', 'Corredor'] }, { id: 'lp1', name: 'Piso 1', zones: ['Camarata 1', 'Camarata 2', 'Camarata 3', 'Varanda Exterior', 'Instalações Sanitárias'] }, { id: 'lp2', name: 'Piso 2', zones: ['Quartos Direção', 'Área Administrativa', 'Zona Técnica'] } ] }
 ];
 
-// === ECRÃ DE LOGIN ===
-function LoginScreen({ onSelectRole }) {
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState(false);
-  const [showPinInput, setShowPinInput] = useState(false);
-
-  const handleAdminLogin = () => {
-    if (pin === '1234') { 
-      onSelectRole('admin');
-    } else {
-      setError(true);
-      setTimeout(() => setError(false), 2000);
-    }
-  };
-
-  if (showPinInput) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 font-sans">
-        <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
-          <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Lock className="w-8 h-8 text-indigo-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Acesso Coordenação</h2>
-          <p className="text-gray-500 mb-6 text-sm">Insira o código PIN de segurança</p>
-          <div className="flex justify-center mb-6">
-            <input type="password" maxLength={4} className="text-center text-3xl tracking-[0.5em] w-48 border-b-2 border-indigo-200 focus:border-indigo-600 focus:outline-none py-2 font-mono text-gray-800" value={pin} onChange={(e) => setPin(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} autoFocus />
-          </div>
-          {error && <p className="text-red-500 text-sm mb-4 animate-pulse">Código incorreto.</p>}
-          <button onClick={handleAdminLogin} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold mb-3 hover:bg-indigo-700 transition-colors">Entrar</button>
-          <button onClick={() => {setShowPinInput(false); setPin('');}} className="text-gray-400 text-sm hover:text-gray-600">Voltar</button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-900 to-gray-900 flex flex-col items-center justify-center p-6 font-sans text-white">
-      <div className="mb-12 text-center">
-        <div className="w-20 h-20 bg-white/10 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm border border-white/20"><ClipboardCheck className="w-10 h-10 text-emerald-400" /></div>
-        <h1 className="text-4xl font-bold mb-2">Complexo CSM</h1>
-        <p className="text-emerald-200/80">Gestão de Manutenção & Obras</p>
-      </div>
-      <div className="grid gap-4 w-full max-w-sm">
-        <button onClick={() => setShowPinInput(true)} className="bg-white text-gray-900 p-5 rounded-2xl flex items-center justify-between hover:bg-gray-50 transition-all shadow-lg group">
-          <div className="flex items-center gap-4"><div className="p-3 bg-indigo-100 rounded-xl group-hover:bg-indigo-200 transition-colors"><LayoutDashboard className="w-6 h-6 text-indigo-700" /></div><div className="text-left"><span className="block font-bold text-lg">Coordenação</span><span className="text-sm text-gray-500">Gestão, Vistorias, Relatórios</span></div></div><ChevronRight className="w-5 h-5 text-gray-400" />
-        </button>
-        <button onClick={() => onSelectRole('worker')} className="bg-white/10 backdrop-blur-md border border-white/10 text-white p-5 rounded-2xl flex items-center justify-center hover:bg-white/20 transition-all shadow-lg group">
-          <div className="flex items-center gap-4"><div className="p-3 bg-emerald-500/20 rounded-xl group-hover:bg-emerald-500/30 transition-colors"><Hammer className="w-6 h-6 text-emerald-400" /></div><div className="text-left"><span className="block font-bold text-lg">Equipa Técnica</span><span className="text-sm text-emerald-200/70">Registo de trabalhos e fotos</span></div></div><ChevronRight className="w-5 h-5 text-white/50" />
-        </button>
-      </div>
-      <p className="mt-12 text-xs text-white/20">v3.0 Full Integrated System</p>
-    </div>
-  );
-}
-
-// === ADMIN APP ===
+// === ADMIN APP (Lógica Principal) ===
 function AdminApp({ onLogout, user }) {
   const [currentView, setCurrentView] = useState('inspection'); 
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [selectedFloor, setSelectedFloor] = useState(null);
   const [selectedZone, setSelectedZone] = useState(null);
   const [inspectionDate, setInspectionDate] = useState(new Date().toISOString().split('T')[0]); 
-  const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]); 
-  const [reportType, setReportType] = useState('weekly'); 
   const [auditData, setAuditData] = useState({});
-  const [analyzingItem, setAnalyzingItem] = useState(null); 
-  const [reportSummary, setReportSummary] = useState('');
-  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const [planningTasks, setPlanningTasks] = useState([]);
-  const [planning, setPlanning] = useState({ startDate: '', endDate: '', teamType: 'internal', teamMembers: '', companyName: '', externalContact: '', driveLink: '' });
-  const [newTaskInput, setNewTaskInput] = useState('');
-  const [isImporting, setIsImporting] = useState(false);
+  const [analyzingItem, setAnalyzingItem] = useState(null);
+  const [isGettingRecommendation, setIsGettingRecommendation] = useState(false);
 
-  useEffect(() => {
-    if (!user) return;
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        tasks.sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? 1 : -1);
-        setPlanningTasks(tasks);
-    });
-    
-    // Configurações de Planeamento
-    const metaRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'planning');
-    const unsubMeta = onSnapshot(metaRef, (docSnap) => {
-        if (docSnap.exists()) { setPlanning(docSnap.data()); } else { setDoc(metaRef, planning, { merge: true }); }
-    });
-    return () => { unsubscribe(); unsubMeta(); };
-  }, [user]);
-
-  const updatePlanningMeta = async (newData) => {
-     const updated = { ...planning, ...newData };
-     setPlanning(updated); 
-     if (user) { try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'planning'), updated); } catch(e) { console.error(e); } }
-  };
-
-  const handleAddTaskToFirestore = async (task) => {
-    if (!user) return;
-    try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...task, completed: false, assignedTo: 'Equipa Interna', createdAt: new Date().toISOString() }); } catch (e) { console.error(e); }
-  };
-  const handleRemoveTask = async (taskId) => { if (!user) return; try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId)); } catch (e) { console.error(e); } };
-  const handleToggleTask = async (taskId, currentStatus) => { if (!user) return; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completed: !currentStatus }); } catch (e) { console.error(e); } };
-
+  // Funções de Vistoria
   const getAuditKey = (bid, zone, iid) => `${bid}-${zone}-${iid}`;
-  const handleCheck = (iid, s) => { if (selectedBuilding && selectedZone) setAuditData(p => ({ ...p, [getAuditKey(selectedBuilding.id, selectedZone, iid)]: { ...p[getAuditKey(selectedBuilding.id, selectedZone, iid)], status: s, date: inspectionDate, details: s === 'nok' ? { causes: '', measures: '', forecast: '' } : null } })); };
-  const handleDetailChange = (iid, f, v) => setAuditData(p => ({ ...p, [getAuditKey(selectedBuilding.id, selectedZone, iid)]: { ...p[getAuditKey(selectedBuilding.id, selectedZone, iid)].details, [f]: v } } ));
+  
+  const handleCheck = (iid, s) => { 
+    if (selectedBuilding && selectedZone) {
+      setAuditData(p => ({ 
+        ...p, 
+        [getAuditKey(selectedBuilding.id, selectedZone, iid)]: { 
+          ...p[getAuditKey(selectedBuilding.id, selectedZone, iid)], 
+          status: s, 
+          date: inspectionDate, 
+          details: s === 'nok' ? { causes: '', measures: '', forecast: '' } : null 
+        } 
+      })); 
+    }
+  };
 
-  const handleFileImport = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setIsImporting(true);
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-        const text = event.target.result;
-        const lines = text.split('\n');
-        let count = 0;
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-            const separator = line.includes(';') ? ';' : ',';
-            const cols = line.split(separator);
-            if (cols.length >= 2) {
-                const desc = cols[1].trim().replace(/^"|"$/g, '');
-                if (desc) {
-                    await handleAddTaskToFirestore({ desc: desc, cat: cols[2] ? cols[2].trim() : 'Importado', date: cols[0].trim() || new Date().toISOString().split('T')[0] });
-                    count++;
-                }
-            }
+  const handleDetailChange = (iid, field, value) => {
+    const key = getAuditKey(selectedBuilding.id, selectedZone, iid);
+    setAuditData(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        details: {
+          ...prev[key].details,
+          [field]: value
         }
-        setIsImporting(false);
-        alert(`${count} tarefas importadas!`);
-    };
-    reader.readAsText(file);
+      }
+    }));
+  };
+
+  // --- FUNÇÃO: Analisar Foto com IA ---
+  const handleAnalyzePhoto = async (itemId) => {
+    const key = getAuditKey(selectedBuilding.id, selectedZone, itemId);
+    const photoUrl = auditData[key]?.photo;
+    if (!photoUrl) { alert("Primeiro tire uma foto!"); return; }
+    
+    setAnalyzingItem(itemId);
+    // Simulação de envio de imagem (Converter URL blob para base64 seria necessário num ambiente real)
+    // Aqui usamos um prompt de texto para testar a lógica
+    const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
+    const prompt = `Analisa este problema de manutenção: ${itemLabel}. Quais as causas prováveis e solução? Responde em JSON: {"causes": "...", "measures": "..."}`;
+    
+    // Chamada à IA
+    const resultText = await callGeminiText(prompt);
+    
+    if (resultText) {
+      try {
+        const cleanJson = resultText.replace(/```json|```/g, '').trim();
+        const result = JSON.parse(cleanJson);
+        // Atualiza os campos automaticamente
+        handleDetailChange(itemId, 'causes', result.causes);
+        handleDetailChange(itemId, 'measures', result.measures);
+      } catch (e) {
+        handleDetailChange(itemId, 'causes', "Erro ao processar IA. Tente manualmente.");
+      }
+    }
+    setAnalyzingItem(null);
+  };
+
+  // --- FUNÇÃO: Pedir Recomendação (Botão Mágico) ---
+  const handleGetRecommendationText = async (itemId, causeText) => {
+    if (!causeText) { alert("Escreva a causa primeiro ou use a IA para analisar."); return; }
+    setIsGettingRecommendation(true);
+    const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
+    const prompt = `Como reparar "${itemLabel}" com o problema: "${causeText}"? Responde curto.`;
+    
+    const recommendation = await callGeminiText(prompt);
+    if (recommendation) {
+      handleDetailChange(itemId, 'measures', recommendation);
+    }
+    setIsGettingRecommendation(false);
+  };
+
+  const handlePhotoUpload = (iid, e) => { 
+    const f = e.target.files[0]; 
+    if (f) setAuditData(p => ({ ...p, [getAuditKey(selectedBuilding.id, selectedZone, iid)]: { ...p[getAuditKey(selectedBuilding.id, selectedZone, iid)], photo: URL.createObjectURL(f) } })) 
   };
 
   const renderInspection = () => {
     if (!selectedBuilding) return (
       <div className="p-6 text-center">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Gestão de Manutenção</h1>
-        <div className="flex justify-center items-center gap-2 mb-8"><label className="text-sm font-medium">Data da Vistoria:</label><input type="date" className="p-2 border rounded" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)} /></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">Vistorias</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mt-8">
           {BUILDINGS_DATA.map((b) => (
-            <button key={b.id} onClick={() => setSelectedBuilding(b)} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-gray-100 flex flex-col items-center gap-4">
-              <div className="p-4 bg-emerald-50 rounded-full">{b.id === 'lar' ? <Home className="w-8 h-8 text-emerald-600" /> : <Building2 className="w-8 h-8 text-emerald-600" />}</div>
-              <span className="font-semibold text-gray-700">{b.name}</span>
+            <button key={b.id} onClick={() => setSelectedBuilding(b)} className="bg-white p-6 rounded-xl shadow border hover:bg-emerald-50 flex items-center gap-4 transition-all">
+              <div className="p-4 bg-emerald-100 rounded-full"><Building2 className="w-8 h-8 text-emerald-700" /></div>
+              <span className="font-bold text-lg text-gray-700">{b.name}</span>
             </button>
           ))}
         </div>
       </div>
     );
+
     return (
-      <div className="flex flex-1 overflow-hidden h-full">
-        <aside className="w-80 bg-white border-r hidden md:block p-4 overflow-y-auto">
-          <button onClick={() => setSelectedBuilding(null)} className="mb-4 text-sm text-gray-500 hover:text-emerald-600 flex items-center gap-1">&larr; Voltar</button>
-          {selectedBuilding.floors.map(f => (
-            <div key={f.id} className="mb-2"><button onClick={() => setSelectedFloor(f.id === selectedFloor?.id ? null : f)} className={`w-full text-left px-3 py-2 rounded flex justify-between ${selectedFloor?.id === f.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50'}`}>{f.name} <ChevronDown className="w-4 h-4"/></button>
-              {selectedFloor?.id === f.id && <div className="ml-4 mt-2 border-l-2 pl-2 space-y-1">{f.zones.map(z => <button key={z} onClick={() => setSelectedZone(z)} className={`w-full text-left px-3 py-2 rounded text-sm ${selectedZone === z ? 'bg-emerald-100 text-emerald-800' : 'hover:bg-gray-50'}`}>{z}</button>)}</div>}
-            </div>
-          ))}
-        </aside>
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-8">
-          {!selectedZone ? <div className="flex flex-col items-center justify-center h-full text-gray-400"><MapPin className="w-16 h-16 mb-4" /><p>Selecione uma zona.</p></div> : (
-            <div className="max-w-4xl mx-auto space-y-6 pb-20">
-              <div className="bg-white p-6 rounded-xl shadow-sm border flex justify-between"><div><h1 className="text-2xl font-bold">{selectedZone}</h1><p className="text-sm text-gray-500">{selectedBuilding.name}</p></div></div>
-              <div className="bg-white rounded-xl shadow-sm border overflow-hidden divide-y">
+      <div className="flex flex-col h-full bg-gray-50">
+        <div className="bg-white p-4 border-b flex justify-between items-center">
+          <button onClick={() => setSelectedBuilding(null)} className="text-sm text-gray-500 hover:text-emerald-600 flex items-center gap-1">&larr; Voltar</button>
+          <h2 className="font-bold text-lg">{selectedBuilding.name}</h2>
+          <div></div>
+        </div>
+        <div className="flex flex-1 overflow-hidden">
+          <aside className="w-64 bg-white border-r overflow-y-auto hidden md:block">
+            {selectedBuilding.floors.map(f => (
+              <div key={f.id} className="mb-2">
+                <button onClick={() => setSelectedFloor(f.id === selectedFloor?.id ? null : f)} className="w-full text-left px-4 py-3 font-bold hover:bg-gray-50 flex justify-between">{f.name} <ChevronDown size={16}/></button>
+                {selectedFloor?.id === f.id && <div className="bg-gray-50">{f.zones.map(z => <button key={z} onClick={() => setSelectedZone(z)} className={`w-full text-left px-8 py-2 text-sm ${selectedZone === z ? 'bg-emerald-100 text-emerald-800 font-bold' : 'hover:bg-gray-100'}`}>{z}</button>)}</div>}
+              </div>
+            ))}
+          </aside>
+          <main className="flex-1 p-6 overflow-y-auto">
+            {!selectedZone ? <div className="flex flex-col items-center justify-center h-full text-gray-400"><MapPin size={48} /><p>Selecione uma zona à esquerda.</p></div> : (
+              <div className="max-w-3xl mx-auto space-y-4">
+                <h2 className="text-2xl font-bold mb-4 border-b pb-2">{selectedZone}</h2>
                 {CHECKLIST_ITEMS.map((item) => {
                   const key = getAuditKey(selectedBuilding.id, selectedZone, item.id);
                   const data = auditData[key] || {};
+                  const isNok = data.status === 'nok';
+                  
                   return (
-                    <div key={item.id} className="p-4 hover:bg-gray-50">
-                      <div className="flex justify-between items-center gap-4">
-                        <div className="flex items-center gap-3"><div className="p-2 bg-gray-100 rounded">{item.icon}</div><div><span className="font-medium block">{item.label}</span><span className="text-xs text-gray-400">{item.category}</span></div></div>
-                        <div className="flex items-center gap-2"><button onClick={() => handleCheck(item.id, 'ok')} className={`px-3 py-2 rounded border flex gap-2 ${data.status === 'ok' ? 'bg-emerald-500 text-white' : 'bg-white text-gray-400'}`}><CheckCircle2 className="w-5 h-5"/> OK</button><button onClick={() => handleCheck(item.id, 'nok')} className={`px-3 py-2 rounded border flex gap-2 ${data.status === 'nok' ? 'bg-red-500 text-white' : 'bg-white text-gray-400'}`}><XCircle className="w-5 h-5"/> Erro</button></div>
+                    <div key={item.id} className={`bg-white p-4 rounded-xl border shadow-sm transition-all ${isNok ? 'border-red-200 ring-1 ring-red-100' : 'hover:border-emerald-200'}`}>
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${isNok ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>{item.icon}</div>
+                          <span className="font-medium">{item.label}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleCheck(item.id, 'ok')} className={`px-3 py-1 rounded text-sm font-bold border ${data.status === 'ok' ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white text-gray-400'}`}>OK</button>
+                          <button onClick={() => handleCheck(item.id, 'nok')} className={`px-3 py-1 rounded text-sm font-bold border ${data.status === 'nok' ? 'bg-red-500 text-white border-red-600' : 'bg-white text-gray-400'}`}>Erro</button>
+                        </div>
                       </div>
-                      {data.status === 'nok' && (<div className="mt-4 pl-12 grid grid-cols-1 md:grid-cols-2 gap-4"><div className="col-span-2"><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Causas..." value={data.details?.causes || ''} onChange={(e) => handleDetailChange(item.id, 'causes', e.target.value)}/></div><div><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Medidas..." value={data.details?.measures || ''} onChange={(e) => handleDetailChange(item.id, 'measures', e.target.value)}/></div></div>)}
+
+                      {/* ÁREA DE DETALHES DO ERRO (COM IA) */}
+                      {isNok && (
+                        <div className="mt-4 pt-4 border-t border-red-50 grid gap-4 animate-in fade-in">
+                          
+                          {/* FOTO E ANÁLISE */}
+                          <div className="flex gap-3 items-center bg-gray-50 p-3 rounded-lg">
+                            <label className="cursor-pointer flex items-center gap-2 text-sm text-blue-600 font-bold hover:text-blue-800">
+                              <Camera size={18}/> {data.photo ? "Alterar Foto" : "Adicionar Foto"}
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(item.id, e)} />
+                            </label>
+                            {data.photo && <span className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 size={12}/> Foto carregada</span>}
+                            
+                            {/* BOTÃO IA 1: Analisar Foto */}
+                            <button 
+                              onClick={() => handleAnalyzePhoto(item.id)} 
+                              disabled={analyzingItem === item.id}
+                              className="ml-auto bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-xs font-bold flex items-center gap-2 hover:bg-indigo-200"
+                            >
+                              {analyzingItem === item.id ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>}
+                              {analyzingItem === item.id ? "A Analisar..." : "IA: Analisar Foto"}
+                            </button>
+                          </div>
+
+                          {/* CAMPOS DE TEXTO */}
+                          <div>
+                            <label className="text-xs font-bold text-gray-500 uppercase">Causas</label>
+                            <input 
+                              type="text" 
+                              className="w-full border p-2 rounded mt-1 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                              placeholder="Descreva o problema..." 
+                              value={data.details?.causes || ''} 
+                              onChange={(e) => handleDetailChange(item.id, 'causes', e.target.value)}
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between items-center">
+                              <label className="text-xs font-bold text-gray-500 uppercase">Medidas de Reparação</label>
+                              
+                              {/* BOTÃO IA 2: Pedir Solução */}
+                              <button 
+                                onClick={() => handleGetRecommendationText(item.id, data.details?.causes)}
+                                disabled={isGettingRecommendation}
+                                className="text-xs text-indigo-600 font-bold flex items-center gap-1 hover:underline"
+                              >
+                                <Sparkles size={12}/> {isGettingRecommendation ? "A pensar..." : "IA: Pedir Solução"}
+                              </button>
+                            </div>
+                            <textarea 
+                              className="w-full border p-2 rounded mt-1 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                              rows={2}
+                              placeholder="O que deve ser feito?" 
+                              value={data.details?.measures || ''} 
+                              onChange={(e) => handleDetailChange(item.id, 'measures', e.target.value)}
+                            />
+                          </div>
+                          
+                          {/* PREVISÃO DE DURAÇÃO */}
+                          <div className="flex gap-4">
+                             <div className="flex-1">
+                               <label className="text-xs font-bold text-gray-500 uppercase">Previsão</label>
+                               <input type="date" className="w-full border p-2 rounded mt-1" value={data.details?.forecast || ''} onChange={(e) => handleDetailChange(item.id, 'forecast', e.target.value)}/>
+                             </div>
+                          </div>
+
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
-            </div>
-          )}
-        </main>
-      </div>
-    );
-  };
-
-  const renderPlanning = () => {
-    return (
-      <div className="h-full flex flex-col md:flex-row bg-gray-50">
-        <div className="w-full md:w-1/3 bg-white border-r flex flex-col p-4 gap-4">
-           <div className="flex gap-2"><input type="text" className="flex-1 border rounded px-2 text-sm" placeholder="Nova tarefa..." value={newTaskInput} onChange={e => setNewTaskInput(e.target.value)} /><button onClick={() => {if(newTaskInput) {handleAddTaskToFirestore({ desc: newTaskInput, cat: 'Manual', date: new Date().toISOString().split('T')[0] }); setNewTaskInput('')}}} className="bg-emerald-600 text-white p-1 rounded"><Plus className="w-5 h-5"/></button></div>
-           <label className="w-full bg-blue-50 text-blue-600 border border-blue-200 p-2 rounded flex items-center justify-center gap-2 cursor-pointer hover:bg-blue-100 transition-colors text-sm font-medium"><input type="file" accept=".csv,.txt" className="hidden" onChange={handleFileImport} disabled={isImporting} />{isImporting ? <Loader2 className="w-4 h-4 animate-spin"/> : <UploadCloud className="w-4 h-4"/>} Importar Ficheiro</label>
-           <div className="flex-1 overflow-y-auto space-y-2">{planningTasks.map(t => (<div key={t.id} className="p-3 border rounded bg-white flex justify-between items-start"><div className="text-sm"><p className="font-medium">{t.desc}</p><span className="text-xs text-gray-400">{t.date}</span></div><button onClick={() => handleRemoveTask(t.id)}><X className="w-4 h-4 text-gray-400"/></button></div>))}</div>
+            )}
+          </main>
         </div>
-        <div className="flex-1 p-6 overflow-y-auto">
-          <h2 className="text-2xl font-bold mb-4">Planeamento</h2>
-          <div className="bg-white p-4 rounded shadow-sm border mb-4">
-             <div className="grid grid-cols-2 gap-4 mb-4"><div><label className="block text-xs font-bold text-gray-500 uppercase">Início</label><input type="datetime-local" className="border rounded p-2 w-full" value={planning.startDate || ''} onChange={e => updatePlanningMeta({ startDate: e.target.value })} /></div><div><label className="block text-xs font-bold text-gray-500 uppercase">Fim</label><input type="datetime-local" className="border rounded p-2 w-full" value={planning.endDate || ''} onChange={e => updatePlanningMeta({ endDate: e.target.value })} /></div></div>
-             <textarea className="border rounded p-2 w-full text-sm" rows={2} placeholder="Equipa / Notas..." value={planning.teamMembers || ''} onChange={e => updatePlanningMeta({ teamMembers: e.target.value })} />
-          </div>
-          <div className="bg-white p-6 rounded shadow space-y-2">
-            {planningTasks.map(t => (<div key={t.id} className={`p-4 border rounded flex items-center gap-3 ${t.completed ? 'bg-emerald-50' : 'bg-white'}`}><input type="checkbox" checked={t.completed} onChange={() => handleToggleTask(t.id, t.completed)} className="w-5 h-5" /><span className={t.completed ? 'line-through text-emerald-700' : ''}>{t.desc}</span></div>))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderReport = () => {
-    const completedTasks = planningTasks.filter(t => t.completed);
-    return (
-      <div className="max-w-5xl mx-auto p-8 bg-white min-h-screen">
-        <h1 className="text-3xl font-bold uppercase border-b-2 border-emerald-600 pb-4 mb-8">Relatório de Manutenção</h1>
-        <div className="mb-8"><h2 className="text-xl font-bold mb-4 text-emerald-600">Trabalhos Concluídos ({completedTasks.length})</h2><table className="w-full text-sm border-collapse"><thead className="bg-gray-100"><tr><th className="p-2 border text-left">Data</th><th className="p-2 border text-left">Tarefa</th></tr></thead><tbody>{completedTasks.map((t, i) => (<tr key={i} className="border-b"><td className="p-2 border text-xs">{t.date}</td><td className="p-2 border font-medium">{t.desc}</td></tr>))}</tbody></table></div>
-        <div className="mb-8"><h2 className="text-xl font-bold mb-4 text-red-600">Anomalias Registadas</h2><p className="text-gray-500 italic">As anomalias registadas na vistoria aparecerão aqui.</p></div>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800 h-screen">
-      <div className="bg-white border-b px-4 pt-4 shadow-sm print:hidden">
-        <div className="flex items-center gap-2 font-bold text-xl text-emerald-800 mb-4"><ClipboardCheck className="w-6 h-6"/> Manutenção App 2.0</div>
-        <div className="flex gap-6">{['inspection','planning','report'].map(v => <button key={v} onClick={() => setCurrentView(v)} className={`pb-3 px-2 border-b-2 capitalize ${currentView===v?'border-emerald-500 text-emerald-600':'border-transparent'}`}>{v === 'inspection' ? 'Vistoria' : v === 'planning' ? 'Planeamento' : 'Relatório'}</button>)}</div>
-        <button onClick={onLogout} className="absolute top-4 right-4 bg-gray-100 hover:bg-gray-200 p-2 rounded-full"><LogOut className="w-5 h-5 text-gray-600"/></button>
+    <div className="min-h-screen bg-gray-100 flex flex-col font-sans text-gray-800 h-screen">
+      <div className="bg-white border-b px-4 py-3 shadow-sm flex justify-between items-center">
+        <div className="flex items-center gap-2 font-bold text-xl text-emerald-800"><ClipboardCheck className="w-6 h-6"/> App Manutenção</div>
+        <button onClick={onLogout}><LogOut size={20} className="text-gray-500 hover:text-red-500"/></button>
       </div>
-      <div className="flex-1 overflow-hidden relative">
-        {currentView === 'inspection' && renderInspection()}
-        {currentView === 'planning' && renderPlanning()}
-        {currentView === 'report' && <div className="h-full overflow-y-auto">{renderReport()}</div>}
+      <div className="flex-1 overflow-hidden">
+        {renderInspection()}
       </div>
     </div>
   );
 }
 
-// === WORKER APP ===
-function WorkerApp({ onLogout, user }) {
-  const [selectedWorker, setSelectedWorker] = useState(localStorage.getItem('workerName') || '');
-  const [inputName, setInputName] = useState(''); 
-  const [tasks, setTasks] = useState([]);
-  
-  useEffect(() => {
-    if (!user) return;
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        fetchedTasks.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-        setTasks(fetchedTasks);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  const handleLogin = () => { if (inputName.trim()) { const name = inputName.trim(); setSelectedWorker(name); localStorage.setItem('workerName', name); } };
-  const handleLogoutWorker = () => { setSelectedWorker(''); localStorage.removeItem('workerName'); setInputName(''); };
-  const handleCompleteTask = async (taskId, currentStatus) => { try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completed: !currentStatus }); } catch (e) { alert("Erro."); } };
-
-  if (!selectedWorker) {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col justify-center items-center font-sans">
-        <h1 className="text-3xl font-bold mb-3 text-center">Área do Trabalhador</h1>
-        <div className="w-full max-w-sm space-y-4 bg-gray-800 p-6 rounded-2xl border border-gray-700">
-           <input type="text" placeholder="O teu nome" className="w-full p-4 bg-gray-900 border border-gray-600 rounded-xl text-white" value={inputName} onChange={(e) => setInputName(e.target.value)} />
-           <button onClick={handleLogin} className="w-full bg-emerald-600 text-white p-4 rounded-xl font-bold">Entrar</button>
-        </div>
-        <button onClick={onLogout} className="mt-8 text-gray-500 hover:text-white text-sm">Voltar</button>
-      </div>
-    );
-  }
-
-  const myTasks = tasks.filter(t => !t.completed); // Mostra apenas pendentes
-  return (
-     <div className="min-h-screen bg-gray-50 pb-24 font-sans p-5">
-        <header className="flex justify-between items-center mb-6"><h2 className="font-bold text-xl">{selectedWorker}</h2><button onClick={handleLogoutWorker} className="text-gray-500"><LogOut /></button></header>
-        <div className="space-y-4">
-           <h3 className="font-bold text-gray-700">Tarefas Pendentes</h3>
-           {myTasks.length === 0 ? <p className="text-gray-400">Tudo feito!</p> : myTasks.map(task => (
-             <div key={task.id} className="bg-white p-5 rounded-2xl border shadow-sm">
-                <h4 className="font-bold text-lg mb-2">{task.desc}</h4>
-                <button onClick={() => handleCompleteTask(task.id, task.completed)} className="w-full bg-emerald-100 text-emerald-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2"><CheckCircle2 className="w-5 h-5" /> Marcar como Feito</button>
-             </div>
-           ))}
-        </div>
-     </div>
-  );
-}
-
-// === PONTO DE ENTRADA PRINCIPAL ===
+// === TELA DE LOGIN & PONTO DE ENTRADA ===
 function App() {
   const [role, setRole] = useState(null); 
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-         await signInAnonymously(auth);
-      } catch (e) {
-        console.error("Auth falhou, tentando anónimo", e);
-      }
-    };
-    initAuth();
+    signInAnonymously(auth).catch(console.error);
     onAuthStateChanged(auth, setUser);
   }, []);
 
-  if (!role) return <LoginScreen onSelectRole={setRole} />;
+  if (!role) {
+    return (
+      <div className="h-screen bg-gradient-to-br from-emerald-900 to-gray-900 flex items-center justify-center p-6">
+        <div className="text-center w-full max-w-sm">
+          <div className="bg-white/10 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-md border border-white/20"><ClipboardCheck size={40} className="text-emerald-400"/></div>
+          <h1 className="text-3xl font-bold text-white mb-8">Complexo CSM</h1>
+          <button onClick={() => setRole('admin')} className="bg-white text-gray-900 w-full p-5 rounded-2xl flex items-center justify-between mb-4 font-bold text-lg hover:scale-105 transition-transform shadow-lg"><div className="flex items-center gap-3"><LayoutDashboard className="text-indigo-600"/> Coordenação</div><ChevronRight className="text-gray-400"/></button>
+          <button onClick={() => setRole('worker')} className="bg-white/10 backdrop-blur border border-white/20 text-white w-full p-5 rounded-2xl flex items-center justify-between font-bold text-lg hover:bg-white/20 transition-all"><div className="flex items-center gap-3"><Hammer className="text-emerald-400"/> Equipa Técnica</div><ChevronRight className="text-white/50"/></button>
+        </div>
+      </div>
+    );
+  }
+
   if (role === 'admin') return <AdminApp onLogout={() => setRole(null)} user={user} />;
-  if (role === 'worker') return <WorkerApp onLogout={() => setRole(null)} user={user} />;
+  return <div className="p-10 text-center">Área Técnica (Em construção...) <br/><button onClick={() => setRole(null)} className="mt-4 text-blue-500 underline">Voltar</button></div>;
 }
 
-// === MONTAGEM (NO FUNDO DO FICHEIRO) ===
+// MONTAGEM
 const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container);
