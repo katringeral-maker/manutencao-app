@@ -9,7 +9,7 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, // <--- ESTE ERA O ÍCONE QUE FALTAVA E BLOQUEAVA A ATUALIZAÇÃO
+  RefreshCw, // <--- ÍCONE QUE FALTAVA E BLOQUEAVA O BUILD
   FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList
 } from 'lucide-react';
 
@@ -22,12 +22,14 @@ import {
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 // --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
-// Corrigido com base na sua Imagem 6 (manutencaoappcsm)
+// DADOS COPIADOS DA SUA IMAGEM (image_682f22.jpg)
 const firebaseConfig = {
-  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
-  authDomain: "manutencaoappcsm.firebaseapp.com", 
-  projectId: "manutencaoappcsm", 
-  storageBucket: "manutencaoappcsm.appspot.com" 
+  apiKey: "AIzaSyAo6MPtHy6b-n0rKvZtuy_TCJPG8qye7oU", 
+  authDomain: "manutencaoappcsm.firebaseapp.com",
+  projectId: "manutencaoappcsm",
+  storageBucket: "manutencaoappcsm.firebasestorage.app",
+  messagingSenderId: "109430393454",
+  appId: "1:109430393454:web:f2a56b08e2ff9ad755f47f"
 };
 
 // Inicialização Segura
@@ -41,6 +43,7 @@ try {
 }
 
 // --- CONFIGURAÇÃO GEMINI API ---
+// Mantenho a chave que me enviou antes para a IA
 const apiKey = "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE"; 
 const appId = 'default-app-id'; 
 
@@ -109,7 +112,7 @@ function App() {
             .then(() => setDbError(null))
             .catch(e => {
                 console.error("Erro Auth:", e);
-                setDbError("Erro de Autenticação. Tente recarregar a página.");
+                setDbError("Erro de Autenticação. Verifique se a Auth Anónima está ativa no Firebase.");
             });
         onAuthStateChanged(auth, setUser);
     }
@@ -223,7 +226,7 @@ function AdminApp({ onLogout, user, setDbError }) {
   useEffect(() => {
     if (!user) return;
     
-    // Ler Tarefas com Ordem
+    // Ler Tarefas
     const tasksQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('date', 'desc'));
     const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
         const tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -231,7 +234,8 @@ function AdminApp({ onLogout, user, setDbError }) {
         setDbError(null);
     }, (err) => {
         console.error("Erro Tasks:", err);
-        setDbError("Erro ao ler tarefas: Base de dados não encontrada ou permissões insuficientes.");
+        if (err.code === 'permission-denied') setDbError("Erro de Permissão. Verifique regras do Firestore.");
+        else setDbError("Erro ao ligar à base de dados.");
     });
 
     // Ler Vistorias
@@ -249,7 +253,6 @@ function AdminApp({ onLogout, user, setDbError }) {
     return () => { unsubscribeTasks(); unsubscribeMeta(); unsubscribeInspection(); };
   }, [user]);
 
-  // Função Auxiliar para criar tarefa
   const createPlanningTask = async (taskData) => {
       try {
           await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
@@ -258,10 +261,7 @@ function AdminApp({ onLogout, user, setDbError }) {
               completed: false,
               createdAt: new Date().toISOString()
           });
-      } catch (e) {
-          alert("Erro ao criar tarefa. Verifique a ligação.");
-          console.error(e);
-      }
+      } catch (e) { alert("Erro ao criar tarefa. Tente novamente."); console.error(e); }
   };
 
   const saveInspectionToFirestore = async (newData) => {
@@ -291,26 +291,30 @@ function AdminApp({ onLogout, user, setDbError }) {
   const handleCheck = async (itemId, status) => { 
       if (!selectedBuilding || !selectedZone) return;
       const key = getAuditKey(selectedBuilding.id, selectedZone, itemId);
-      
       const newItem = { 
-          ...auditData[key], 
-          status: status, 
-          date: inspectionDate, 
+          ...auditData[key], status: status, date: inspectionDate, 
           details: auditData[key]?.details || (status === 'nok' ? { causes: '', measures: '', forecast: '' } : null)
       };
-
       const newAuditData = { ...auditData, [key]: newItem };
       saveInspectionToFirestore(newAuditData);
 
-      // --- CRIAÇÃO IMEDIATA DE TAREFA ---
       if (status === 'nok') {
           const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
-          createPlanningTask({
-              desc: `Reparar ${itemLabel} em ${selectedBuilding.name} - ${selectedZone}`,
-              cat: 'Vistoria',
-              date: inspectionDate,
-              originId: `auto_${key}_${Date.now()}` // ID único garantido
-          });
+          // Verifica se já criámos esta tarefa HOJE para não duplicar infinitamente ao clicar
+          const todayStr = new Date().toISOString().split('T')[0];
+          const uniqueId = `auto_${key}_${todayStr}`;
+          
+          // Só cria se ainda não existir localmente uma com este ID
+          const alreadyExists = planningTasks.find(t => t.originId === uniqueId);
+          
+          if (!alreadyExists) {
+            createPlanningTask({
+                desc: `Reparar ${itemLabel} em ${selectedBuilding.name} - ${selectedZone}`,
+                cat: 'Vistoria',
+                date: inspectionDate,
+                originId: uniqueId
+            });
+          }
       }
   };
 
