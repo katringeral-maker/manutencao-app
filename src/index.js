@@ -9,7 +9,7 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, // <--- ESTE ERA O ÍCONE QUE FALTAVA E BLOQUEAVA A ATUALIZAÇÃO
+  RefreshCw, 
   FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList, HardHat
 } from 'lucide-react';
 
@@ -22,14 +22,11 @@ import {
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 // --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
-// Corrigido com base na sua Imagem 3 (manutencaoappcsm)
 const firebaseConfig = {
-  apiKey: "AIzaSyAo6MPtHy6b-n0rKvZtuy_TCJPG8qye7oU", 
-  authDomain: "manutencaoappcsm.firebaseapp.com", 
-  projectId: "manutencaoappcsm", 
-  storageBucket: "manutencaoappcsm.firebasestorage.app",
-  messagingSenderId: "109430393454",
-  appId: "1:109430393454:web:f2a56b08e2ff9ad755f47f"
+  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
+  authDomain: "manutencaoappcsm.firebaseapp.com",
+  projectId: "manutencaoappcsm",
+  storageBucket: "manutencaoappcsm.appspot.com"
 };
 
 // Inicialização Segura
@@ -433,7 +430,7 @@ function AdminApp({ onLogout, user, setDbError }) {
     setChatMessages(p => [...p, { role: 'assistant', text: response || "Erro IA." }]); setIsChatLoading(false);
   };
 
-  const handleFileImport = (e) => { const file = e.target.files[0]; if (!file) return; setIsImporting(true); const reader = new FileReader(); reader.readAsText(file, 'ISO-8859-1'); reader.onload = async (event) => { const text = event.target.result; const lines = text.split('\n'); let count = 0; for (let i = 0; i < lines.length; i++) { const line = lines[i].trim(); if (!line) continue; const separator = line.includes(';') ? ';' : ','; const cols = line.split(separator); if (cols.length >= 2) { const desc = cols[1].trim().replace(/^"|"$/g, ''); if (desc) { createPlanningTask({ desc: desc, cat: cols[2]?.trim() || 'Importado', date: cols[0].trim() || new Date().toISOString().split('T')[0] }); count++; } } } setIsImporting(false); alert(`${count} tarefas importadas!`); }; reader.readAsText(f); };
+  const handleFileImport = (e) => { const file = e.target.files[0]; if (!file) return; setIsImporting(true); const reader = new FileReader(); reader.readAsText(file, 'UTF-8'); reader.onload = async (event) => { const text = event.target.result; const lines = text.split('\n'); let count = 0; for (let i = 0; i < lines.length; i++) { const line = lines[i].trim(); if (!line) continue; const separator = line.includes(';') ? ';' : ','; const cols = line.split(separator); if (cols.length >= 2) { const desc = cols[1].trim().replace(/^"|"$/g, ''); if (desc) { createPlanningTask({ desc: desc, cat: cols[2]?.trim() || 'Importado', date: cols[0].trim() || new Date().toISOString().split('T')[0] }); count++; } } } setIsImporting(false); alert(`${count} tarefas importadas!`); }; reader.readAsText(f); };
 
   const getWeekRange = (dateString) => { const d = new Date(dateString); const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1); const m = new Date(d); m.setDate(diff); const s = new Date(m); s.setDate(m.getDate() + 6); return `${m.toLocaleDateString('pt-PT')} a ${s.toLocaleDateString('pt-PT')}`; };
   const getPeriodLabel = () => { const d = new Date(reportDate); if (reportType === 'daily') return d.toLocaleDateString('pt-PT'); if (reportType === 'weekly') return getWeekRange(reportDate); if (reportType === 'monthly') return d.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }); return `Ano ${d.getFullYear()}`; };
@@ -659,7 +656,7 @@ function WorkerApp({ onLogout, user }) {
   const handleReportTask = async () => { if (!newTaskDesc.trim() || !user) return; setIsReporting(true); try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: newTaskDesc, cat: 'Detetado em Obra', date: new Date().toISOString().split('T')[0], assignedTo: selectedWorker, completed: false, createdAt: new Date().toISOString(), initialPhoto: newTaskPhoto }); setNewTaskDesc(''); setNewTaskPhoto(null); alert("Tarefa reportada!"); } catch (e) { alert("Erro."); } setIsReporting(false); };
   const handleCompleteTask = async (taskId, currentStatus) => { if (!user) return; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completed: !currentStatus, completedAt: !currentStatus ? new Date().toISOString() : null, completedBy: !currentStatus ? selectedWorker : null }); } catch (e) { alert("Erro."); } };
   const handlePhotoUpload = async (e, taskId) => { const f = e.target.files[0]; if (!f) return; setUploading(taskId); const r = new FileReader(); r.onloadend = async () => { try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completionPhoto: r.result, completed: true, completedAt: new Date().toISOString(), completedBy: selectedWorker }); } catch (err) { alert("Erro."); } setUploading(null); }; r.readAsDataURL(f); };
-  const handleFileImport = (e) => { const f = e.target.files[0]; if (!f) return; setIsImporting(true); const r = new FileReader(); r.onload = async (event) => { const t = event.target.result; const l = t.split('\n'); let c = 0; for (let i=0; i<l.length; i++) { const line = l[i].trim(); if (!line) continue; const s = line.includes(';') ? ';' : ','; const cols = line.split(s); if (cols.length >= 2) { const desc = cols[1].trim().replace(/^"|"$/g, ''); if (desc) { try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: desc, cat: cols[2]?.trim() || 'Geral', date: cols[0].trim() || new Date().toISOString().split('T')[0], assignedTo: 'Importado', completed: false, createdAt: new Date().toISOString() }); c++; } catch (err) {} } } } setIsImporting(false); alert(`${c} tarefas importadas!`); }; r.readAsText(f); };
+  const handleFileImport = (e) => { const f = e.target.files[0]; if (!f) return; setIsImporting(true); const r = new FileReader(); r.readAsText(f, 'UTF-8'); r.onload = async (event) => { const t = event.target.result; const l = t.split('\n'); let c = 0; for (let i=0; i<l.length; i++) { const line = l[i].trim(); if (!line) continue; const s = line.includes(';') ? ';' : ','; const cols = line.split(s); if (cols.length >= 2) { const desc = cols[1].trim().replace(/^"|"$/g, ''); if (desc) { try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: desc, cat: cols[2]?.trim() || 'Geral', date: cols[0].trim() || new Date().toISOString().split('T')[0], assignedTo: 'Importado', completed: false, createdAt: new Date().toISOString() }); c++; } catch (err) {} } } } setIsImporting(false); alert(`${c} tarefas importadas!`); }; };
 
   const myTasks = tasks.filter(t => { const a = t.assignedTo || ''; return a.toLowerCase().includes(selectedWorker.toLowerCase()) || a.toLowerCase().includes('equipa') || a.toLowerCase().includes('todos') || a.toLowerCase().includes('importado') || t.cat === 'Detetado em Obra'; });
   const pendingTasks = myTasks.filter(t => !t.completed);
