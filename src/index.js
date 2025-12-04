@@ -9,7 +9,7 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, FileSpreadsheet, Edit3, Eye, FileCheck
+  RefreshCw, FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList
 } from 'lucide-react';
 
 // FIREBASE IMPORTS
@@ -287,14 +287,12 @@ function AdminApp({ onLogout, user }) {
       if (status === 'nok') {
           const building = selectedBuilding.name;
           const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
-          // ID único baseado na localização e item para evitar duplicados
           const taskId = `auto_${key}_${new Date().toISOString().split('T')[0]}`; 
 
           try {
-              // Verifica se já existe uma tarefa hoje para este erro
-              // Simplificação: apenas tenta criar, se precisar de lógica complexa de duplicação, teria de ler tasks primeiro
-              // Aqui assumimos que cria sempre para garantir que aparece no planeamento
-              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+              // Verifica se já existe uma tarefa hoje para este erro (Simplificado: tenta criar sempre)
+              // Usamos setDoc com merge para não duplicar se já existir com o mesmo ID
+              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { 
                   desc: `Reparar ${itemLabel} em ${building} - ${selectedZone}`, 
                   cat: 'Vistoria', 
                   date: inspectionDate, 
@@ -303,7 +301,7 @@ function AdminApp({ onLogout, user }) {
                   recommendation: '', 
                   assignedTo: 'Equipa Interna',
                   createdAt: new Date().toISOString()
-              });
+              }, { merge: true });
               
               // Marca como sincronizado na base de dados
               const finalAuditData = { ...newAuditData, [key]: { ...newItem, syncedToTasks: true } };
@@ -364,7 +362,7 @@ function AdminApp({ onLogout, user }) {
   const handleRemoveTask = async (taskId) => { if (!user) return; try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId)); } catch (e) {} };
   const handleToggleTask = async (taskId, currentStatus) => { if (!user) return; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completed: !currentStatus }); } catch (e) {} };
 
-  // --- FUNÇÕES DA IA ---
+  // --- FUNÇÕES DA IA (Flash 1.5) ---
   const handleEstimateTaskDetails = async (task) => {
     setEstimatingTaskId(task.id);
     const staffCount = planning.teamType === 'internal' ? 'equipa interna atual' : 'empresa externa';
@@ -683,6 +681,7 @@ function AdminApp({ onLogout, user }) {
 function WorkerApp({ onLogout, user }) {
   const [selectedWorker, setSelectedWorker] = useState(localStorage.getItem('workerName') || '');
   const [inputName, setInputName] = useState(''); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [uploading, setUploading] = useState(null); const [newTaskDesc, setNewTaskDesc] = useState(''); const [newTaskPhoto, setNewTaskPhoto] = useState(null); const [isReporting, setIsReporting] = useState(false); const [isImporting, setIsImporting] = useState(false);
+  const [showWorksheet, setShowWorksheet] = useState(false); // NOVO STATE PARA FOLHA DE OBRA
 
   useEffect(() => {
     if (!user) return;
@@ -712,7 +711,33 @@ function WorkerApp({ onLogout, user }) {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 font-sans">
-      <header className="bg-white border-b sticky top-0 z-10 px-5 py-4 shadow-sm flex justify-between items-center"><div><h2 className="font-bold text-xl text-gray-900 flex items-center gap-2">{selectedWorker}</h2><div className="flex items-center gap-2 mt-1"><span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span><p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Online</p></div></div><div className="flex gap-2"><label className="p-2 bg-blue-50 rounded-xl text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer flex items-center justify-center"><input type="file" accept=".csv,.txt" className="hidden" onChange={handleFileImport} disabled={isImporting} />{isImporting ? <RefreshCw className="w-5 h-5 animate-spin"/> : <UploadCloud className="w-5 h-5" />}</label><button onClick={handleLogoutWorker} className="p-2 bg-gray-100 rounded-xl text-gray-500 hover:bg-red-50 transition-colors"><LogOut className="w-5 h-5" /></button></div></header>
+      <header className="bg-white border-b sticky top-0 z-10 px-5 py-4 shadow-sm flex justify-between items-center"><div><h2 className="font-bold text-xl text-gray-900 flex items-center gap-2">{selectedWorker}</h2><div className="flex items-center gap-2 mt-1"><span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span><p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Online</p></div></div><div className="flex gap-2"><button onClick={() => setShowWorksheet(true)} className="p-2 bg-indigo-50 rounded-xl text-indigo-600 hover:bg-indigo-100 transition-colors flex items-center gap-2"><FileText className="w-5 h-5"/><span className="hidden md:inline text-xs font-bold">Folha Obra</span></button><label className="p-2 bg-blue-50 rounded-xl text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer flex items-center justify-center"><input type="file" accept=".csv,.txt" className="hidden" onChange={handleFileImport} disabled={isImporting} />{isImporting ? <RefreshCw className="w-5 h-5 animate-spin"/> : <UploadCloud className="w-5 h-5" />}</label><button onClick={handleLogoutWorker} className="p-2 bg-gray-100 rounded-xl text-gray-500 hover:bg-red-50 transition-colors"><LogOut className="w-5 h-5" /></button></div></header>
+      
+      {/* MODAL FOLHA DE OBRA (NOVO) */}
+      {showWorksheet && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+                <div className="bg-indigo-600 text-white p-4 flex justify-between items-center"><h2 className="font-bold text-lg flex items-center gap-2"><ClipboardList className="w-5 h-5"/> Folha de Obra Diária</h2><button onClick={() => setShowWorksheet(false)}><X className="w-6 h-6"/></button></div>
+                <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                    <div className="text-center border-b pb-4"><h3 className="text-2xl font-bold text-gray-800">{selectedWorker}</h3><p className="text-gray-500">{new Date().toLocaleDateString('pt-PT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p></div>
+                    
+                    <div><h4 className="font-bold text-emerald-600 mb-2 border-b border-emerald-100 pb-1">✅ Tarefas Concluídas Hoje</h4>
+                    {completedTasks.length === 0 ? <p className="text-gray-400 italic text-sm">Nenhuma tarefa concluída hoje.</p> : (
+                        <ul className="space-y-2">{completedTasks.map(t => (<li key={t.id} className="text-sm bg-gray-50 p-2 rounded border border-gray-100"><span className="font-bold text-gray-700">{t.desc}</span>{t.workerObservations && <div className="text-xs text-gray-500 italic mt-1">Obs: {t.workerObservations}</div>}</li>))}</ul>
+                    )}</div>
+
+                    <div><h4 className="font-bold text-blue-600 mb-2 border-b border-blue-100 pb-1">🚧 Ocorrências Reportadas</h4>
+                    {tasks.filter(t => t.cat === 'Detetado em Obra' && t.date === today && t.assignedTo === selectedWorker).length === 0 ? <p className="text-gray-400 italic text-sm">Nenhuma ocorrência reportada hoje.</p> : (
+                        <ul className="space-y-2">{tasks.filter(t => t.cat === 'Detetado em Obra' && t.date === today && t.assignedTo === selectedWorker).map(t => (<li key={t.id} className="text-sm bg-blue-50 p-2 rounded border border-blue-100"><span className="font-bold text-gray-700">{t.desc}</span></li>))}</ul>
+                    )}</div>
+
+                    <div className="border-t pt-4 mt-4"><div className="flex justify-between items-end"><div className="text-xs text-gray-400">Assinatura Digital<br/>{new Date().toLocaleTimeString()}</div><div className="h-10 w-32 border-b border-gray-300"></div></div></div>
+                </div>
+                <div className="p-4 bg-gray-50 border-t flex justify-end"><button onClick={() => window.print()} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-indigo-700"><Printer className="w-4 h-4"/> Imprimir Folha</button></div>
+            </div>
+        </div>
+      )}
+
       <main className="p-5 max-w-md mx-auto space-y-6">
         <div className="grid grid-cols-2 gap-4"><div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center"><span className="text-3xl font-bold text-blue-600 mb-1">{pendingTasks.length}</span><span className="text-xs font-medium text-gray-400 uppercase tracking-wide">A Fazer</span></div><div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center"><span className="text-3xl font-bold text-emerald-600 mb-1">{completedTasks.length}</span><span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Feitas Hoje</span></div></div>
         <div className="bg-white p-4 rounded-2xl border border-emerald-100 shadow-sm ring-4 ring-emerald-50/50"><h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2 text-sm uppercase tracking-wide"><Plus className="w-4 h-4 text-emerald-600" /> Detetou algo novo?</h3><div className="flex flex-col gap-3"><input type="text" value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)} placeholder="Ex: Lâmpada fundida no corredor..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all" /><div className="flex gap-2"><label className={`flex-1 p-3 rounded-xl border flex items-center justify-center gap-2 cursor-pointer transition-all ${newTaskPhoto ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'}`}><input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleNewTaskPhoto} />{newTaskPhoto ? <><CheckCircle2 className="w-4 h-4"/> Foto OK</> : <><Camera className="w-4 h-4"/> Tirar Foto</>}</label><button onClick={handleReportTask} disabled={!newTaskDesc.trim() || isReporting} className="flex-[2] bg-gray-900 text-white p-3 rounded-xl hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg flex items-center justify-center gap-2">{isReporting ? <RefreshCw className="w-4 h-4 animate-spin"/> : <Send className="w-4 h-4" />} Reportar</button></div>{newTaskPhoto && (<div className="relative mt-1"><img src={newTaskPhoto} alt="Preview" className="h-32 w-full object-cover rounded-xl border border-gray-200" /><button onClick={() => setNewTaskPhoto(null)} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full shadow-lg"><X className="w-4 h-4"/></button></div>)}</div></div>
