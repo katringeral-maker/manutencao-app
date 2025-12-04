@@ -378,6 +378,10 @@ function AdminApp({ onLogout, user }) {
                       <input type="text" placeholder="Materiais..." className="w-full bg-white border border-gray-200 rounded p-1 text-sm mt-1" value={t.materials || ''} onChange={(e) => handleUpdateTask(t.id, 'materials', e.target.value)}/>
                   </div>
               </div>
+              
+              <div className="mt-3 flex justify-end">
+                 <button onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { completed: true })} className="text-sm text-emerald-600 hover:bg-emerald-50 px-3 py-1 rounded font-bold border border-emerald-200 flex items-center gap-2"><CheckCircle2 size={14}/> Concluir</button>
+              </div>
             </div>
           ))}
         </div>
