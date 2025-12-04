@@ -58,22 +58,22 @@ async function callGeminiText(prompt) {
 
 // --- DADOS ---
 const CHECKLIST_ITEMS = [
-  { id: 'limpeza', label: 'Limpeza Geral / Lixo', category: 'Limpeza', icon: <ClipboardCheck size={16} /> },
-  { id: 'vidros', label: 'Vidros e Fachadas', category: 'Limpeza', icon: <ClipboardCheck size={16} /> },
-  { id: 'duches', label: 'Duches / Torneiras', category: 'Canalização', icon: <Droplets size={16} /> },
-  { id: 'wc', label: 'Instalações Sanitárias', category: 'Canalização', icon: <CheckCircle2 size={16} /> },
-  { id: 'iluminacao', label: 'Iluminação', category: 'Elétrica', icon: <Lightbulb size={16} /> },
-  { id: 'eletrica', label: 'Tomadas / Rede / Wifi', category: 'Elétrica', icon: <Wifi size={16} /> },
-  { id: 'portas', label: 'Portas / Fechaduras', category: 'Civil', icon: <DoorOpen size={16} /> },
-  { id: 'piso', label: 'Piso / Pavimento', category: 'Civil', icon: <Footprints size={16} /> },
-  { id: 'paredes', label: 'Paredes / Pintura', category: 'Civil', icon: <PaintBucket size={16} /> },
-  { id: 'teto', label: 'Tetos Falsos', category: 'Civil', icon: <LayoutDashboard size={16} /> },
-  { id: 'sinaletica', label: 'Sinalética', category: 'Geral', icon: <AlertTriangle size={16} /> },
-  { id: 'serralharia', label: 'Serralharia / Portões', category: 'Geral', icon: <Wrench size={16} /> },
-  { id: 'fitness', label: 'Material Desportivo/Fitness', category: 'Equipamento', icon: <Hammer size={16} /> },
-  { id: 'relvado_corte', label: 'Relvado (Corte)', category: 'Espaços Verdes', icon: <TreePine size={16} /> },
-  { id: 'relvado_rega', label: 'Sistema de Rega', category: 'Espaços Verdes', icon: <Droplets size={16} /> },
-  { id: 'relvado_adubacao', label: 'Adubação / Tratamento', category: 'Espaços Verdes', icon: <TreePine size={16} /> },
+  { id: 'limpeza', label: 'Limpeza Geral / Lixo', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
+  { id: 'vidros', label: 'Vidros e Fachadas', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
+  { id: 'duches', label: 'Duches / Torneiras', category: 'Canalização', icon: <Droplets className="w-4 h-4" /> },
+  { id: 'wc', label: 'Instalações Sanitárias', category: 'Canalização', icon: <CheckCircle2 className="w-4 h-4" /> },
+  { id: 'iluminacao', label: 'Iluminação', category: 'Elétrica', icon: <Lightbulb className="w-4 h-4" /> },
+  { id: 'eletrica', label: 'Tomadas / Rede / Wifi', category: 'Elétrica', icon: <Wifi className="w-4 h-4" /> },
+  { id: 'portas', label: 'Portas / Fechaduras', category: 'Civil', icon: <DoorOpen className="w-4 h-4" /> },
+  { id: 'piso', label: 'Piso / Pavimento', category: 'Civil', icon: <Footprints className="w-4 h-4" /> },
+  { id: 'paredes', label: 'Paredes / Pintura', category: 'Civil', icon: <PaintBucket className="w-4 h-4" /> },
+  { id: 'teto', label: 'Tetos Falsos', category: 'Civil', icon: <LayoutDashboard className="w-4 h-4" /> },
+  { id: 'sinaletica', label: 'Sinalética', category: 'Geral', icon: <AlertTriangle className="w-4 h-4" /> },
+  { id: 'serralharia', label: 'Serralharia / Portões', category: 'Geral', icon: <Wrench className="w-4 h-4" /> },
+  { id: 'fitness', label: 'Material Desportivo/Fitness', category: 'Equipamento', icon: <Hammer className="w-4 h-4" /> },
+  { id: 'relvado_corte', label: 'Relvado (Corte)', category: 'Espaços Verdes', icon: <TreePine className="w-4 h-4" /> },
+  { id: 'relvado_rega', label: 'Sistema de Rega', category: 'Espaços Verdes', icon: <Droplets className="w-4 h-4" /> },
+  { id: 'relvado_adubacao', label: 'Adubação / Tratamento', category: 'Espaços Verdes', icon: <TreePine className="w-4 h-4" /> },
 ];
 
 const BUILDINGS_DATA = [
@@ -99,7 +99,6 @@ function AdminApp({ onLogout, user }) {
 
   // Dados de Planeamento
   const [planningTasks, setPlanningTasks] = useState([]);
-  const [planning, setPlanning] = useState({ startDate: '', endDate: '', teamMembers: '' });
   const [newTaskInput, setNewTaskInput] = useState('');
   const [estimatingTaskId, setEstimatingTaskId] = useState(null);
   const [isGeneratingWhatsApp, setIsGeneratingWhatsApp] = useState(false);
@@ -168,21 +167,48 @@ function AdminApp({ onLogout, user }) {
     if (f) setAuditData(p => ({ ...p, [getAuditKey(selectedBuilding.id, selectedZone, iid)]: { ...p[getAuditKey(selectedBuilding.id, selectedZone, iid)], photo: URL.createObjectURL(f) } })) 
   };
 
-  // --- FUNÇÕES DE PLANEAMENTO (IA) ---
+  // --- FUNÇÕES DE PLANEAMENTO (IA AVANÇADA) ---
   const handleAddTask = async () => {
     if (!newTaskInput) return;
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: newTaskInput, completed: false, assignedTo: 'Geral', date: new Date().toISOString().split('T')[0] });
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+        desc: newTaskInput, 
+        completed: false, 
+        assignedTo: '', // Equipa vazia inicialmente
+        startDate: new Date().toISOString().split('T')[0], // Data de hoje por defeito
+        duration: '',
+        materials: '',
+        date: new Date().toISOString()
+    });
     setNewTaskInput('');
   };
 
+  const handleUpdateTask = async (id, field, value) => {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id), { [field]: value });
+  };
+
+  // CÁLCULO DE TEMPO COM IA BASEADO NA EQUIPA
   const handleEstimateTask = async (task) => {
     setEstimatingTaskId(task.id);
-    const prompt = `Estima duração e material para: "${task.desc}". JSON: {"duration": "...", "materials": "..."}`;
+    const equipa = task.assignedTo || "1 pessoa (padrão)";
+    const prompt = `
+      Sou gestor de manutenção.
+      Tarefa: "${task.desc}"
+      Equipa que vai executar: "${equipa}".
+      
+      Calcula a duração estimada considerando o tamanho desta equipa.
+      Se for uma equipa grande, o tempo deve ser menor.
+      
+      Responde APENAS JSON: {"duration": "ex: 2 horas", "materials": "ex: Tinta, rolos"}
+    `;
+    
     const resultText = await callGeminiText(prompt);
     if (resultText) {
       try {
         const res = JSON.parse(resultText.replace(/```json|```/g, '').trim());
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { duration: res.duration, materials: res.materials });
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { 
+            duration: res.duration, 
+            materials: res.materials 
+        });
       } catch (e) { console.error(e); }
     }
     setEstimatingTaskId(null);
@@ -190,18 +216,18 @@ function AdminApp({ onLogout, user }) {
 
   const handleGenerateWhatsApp = async () => {
     setIsGeneratingWhatsApp(true);
-    const tasks = planningTasks.filter(t => !t.completed).map(t => `- ${t.desc}`).join('\n');
-    const prompt = `Cria msg WhatsApp para equipa com estas tarefas:\n${tasks}\nUsa emojis.`;
+    const tasks = planningTasks.filter(t => !t.completed).map(t => `- ${t.desc} (${t.assignedTo || 'Geral'}) - Início: ${t.startDate || 'ND'}`).join('\n');
+    const prompt = `Cria msg WhatsApp para equipa com estas tarefas:\n${tasks}\nUsa emojis e sê motivador.`;
     const text = await callGeminiText(prompt);
-    if (text) alert("Copiado para a área de transferência:\n" + text); // Simulação de cópia
+    if (text) alert("Copiado para a área de transferência:\n\n" + text);
     setIsGeneratingWhatsApp(false);
   };
 
   // --- FUNÇÕES DE RELATÓRIO (IA) ---
   const handleGenerateSummary = async () => {
     setIsGeneratingSummary(true);
-    const done = planningTasks.filter(t => t.completed).map(t => t.desc).join(', ');
-    const prompt = `Cria resumo executivo de manutenção. Feito: ${done}. Tom profissional.`;
+    const done = planningTasks.filter(t => t.completed).map(t => `${t.desc} (Feito por: ${t.assignedTo})`).join(', ');
+    const prompt = `Cria um relatório diário de obras. Obras concluídas: ${done}. Destaca a produtividade. Tom profissional.`;
     const text = await callGeminiText(prompt);
     if (text) setReportSummary(text);
     setIsGeneratingSummary(false);
@@ -262,33 +288,83 @@ function AdminApp({ onLogout, user }) {
   const renderPlanning = () => (
     <div className="flex flex-col md:flex-row h-full bg-gray-50">
       <div className="w-full md:w-1/3 bg-white border-r p-4 flex flex-col gap-4">
-        <h3 className="font-bold text-gray-700">Tarefas</h3>
-        <div className="flex gap-2"><input type="text" className="border rounded p-2 flex-1" placeholder="Nova tarefa..." value={newTaskInput} onChange={e => setNewTaskInput(e.target.value)} /><button onClick={handleAddTask} className="bg-emerald-600 text-white p-2 rounded"><Plus/></button></div>
-        <div className="flex-1 overflow-y-auto space-y-2">
-          {planningTasks.map(t => (
-            <div key={t.id} className="p-3 border rounded bg-white relative group">
-              <div className="flex justify-between"><span className="font-medium">{t.desc}</span><button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id))}><X size={14} className="text-gray-400"/></button></div>
-              <div className="text-xs text-gray-500 mt-1 flex gap-2">
-                {t.duration && <span className="bg-gray-100 px-1 rounded flex gap-1 items-center"><Clock size={10}/> {t.duration}</span>}
-                {t.materials && <span className="bg-gray-100 px-1 rounded flex gap-1 items-center"><Package size={10}/> {t.materials}</span>}
-              </div>
-              <button onClick={() => handleEstimateTask(t)} disabled={estimatingTaskId === t.id} className="absolute bottom-2 right-2 text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"><Sparkles size={14}/></button>
-            </div>
-          ))}
+        <h3 className="font-bold text-gray-700 flex gap-2 items-center"><ListTodo size={20}/> Adicionar Tarefa</h3>
+        <div className="flex gap-2"><input type="text" className="border rounded p-2 flex-1 shadow-sm" placeholder="Nova tarefa..." value={newTaskInput} onChange={e => setNewTaskInput(e.target.value)} /><button onClick={handleAddTask} className="bg-emerald-600 text-white p-2 rounded shadow-sm hover:bg-emerald-700"><Plus/></button></div>
+        <div className="bg-blue-50 p-3 rounded text-sm text-blue-800 border border-blue-100">
+            <p className="font-bold mb-1">Dica:</p>
+            Defina a equipa e a data de início em cada tarefa para a IA calcular o tempo corretamente.
         </div>
+        <button onClick={handleGenerateWhatsApp} disabled={isGeneratingWhatsApp} className="mt-auto bg-green-600 text-white px-4 py-3 rounded-xl flex gap-2 items-center justify-center font-bold shadow hover:bg-green-700">{isGeneratingWhatsApp ? <Loader2 className="animate-spin"/> : <MessageSquare size={18}/>} Gerar Escala (WhatsApp)</button>
       </div>
-      <div className="flex-1 p-6">
-        <div className="flex justify-between mb-4"><h2 className="text-2xl font-bold">Planeamento</h2><button onClick={handleGenerateWhatsApp} disabled={isGeneratingWhatsApp} className="bg-green-600 text-white px-4 py-2 rounded flex gap-2 items-center text-sm font-bold">{isGeneratingWhatsApp ? <Loader2 className="animate-spin"/> : <MessageSquare size={16}/>} Gerar WhatsApp</button></div>
-        <div className="bg-white p-6 rounded shadow space-y-2">
-          {planningTasks.map(t => (
-            <div key={t.id} className={`p-4 border rounded flex items-center gap-3 ${t.completed ? 'bg-emerald-50' : 'bg-white'}`}>
-              <input type="checkbox" checked={t.completed} onChange={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { completed: !t.completed })} className="w-5 h-5"/>
-              <div>
-                <span className={t.completed ? 'line-through text-emerald-700' : 'font-medium'}>{t.desc}</span>
-                <div className="text-xs text-gray-500">{t.assignedTo} | {t.date}</div>
+      
+      <div className="flex-1 p-6 overflow-y-auto">
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">Quadro de Planeamento</h2>
+        <div className="space-y-4">
+          {planningTasks.filter(t => !t.completed).map(t => (
+            <div key={t.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 relative group hover:border-indigo-300 transition-all">
+              <button onClick={() => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id))} className="absolute top-3 right-3 text-gray-300 hover:text-red-500"><X size={16}/></button>
+              
+              <div className="mb-3">
+                  <span className="font-bold text-lg text-gray-800">{t.desc}</span>
+              </div>
+
+              {/* GRELHA DE DADOS DA TAREFA */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  
+                  {/* CAMPO 1: DATA INÍCIO */}
+                  <div>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1"><Calendar size={10}/> Data Início</label>
+                      <input 
+                        type="date" 
+                        className="w-full bg-white border border-gray-200 rounded p-1 text-sm mt-1" 
+                        value={t.startDate || ''} 
+                        onChange={(e) => handleUpdateTask(t.id, 'startDate', e.target.value)}
+                      />
+                  </div>
+
+                  {/* CAMPO 2: EQUIPA (FUNCIONÁRIOS) */}
+                  <div>
+                      <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1"><Users size={10}/> Equipa / Funcionários</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ex: João, Maria..." 
+                        className="w-full bg-white border border-gray-200 rounded p-1 text-sm mt-1" 
+                        value={t.assignedTo || ''} 
+                        onChange={(e) => handleUpdateTask(t.id, 'assignedTo', e.target.value)}
+                      />
+                  </div>
+
+                  {/* CAMPO 3: DURAÇÃO (CALCULADA OU MANUAL) */}
+                  <div className="col-span-2">
+                      <div className="flex justify-between items-center">
+                          <label className="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-1"><Clock size={10}/> Duração / Prazo</label>
+                          
+                          {/* BOTÃO MÁGICO: CALCULAR TEMPO */}
+                          <button 
+                            onClick={() => handleEstimateTask(t)} 
+                            disabled={estimatingTaskId === t.id}
+                            className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200 hover:bg-indigo-200 flex items-center gap-1"
+                          >
+                            {estimatingTaskId === t.id ? <Loader2 size={10} className="animate-spin"/> : <Sparkles size={10}/>}
+                            IA: Calcular Tempo
+                          </button>
+                      </div>
+                      <input 
+                        type="text" 
+                        placeholder="Ex: 2 dias (Calculado pela IA ou Manual)" 
+                        className="w-full bg-white border border-indigo-100 rounded p-1 text-sm mt-1 font-medium text-indigo-900" 
+                        value={t.duration || ''} 
+                        onChange={(e) => handleUpdateTask(t.id, 'duration', e.target.value)}
+                      />
+                  </div>
+              </div>
+              
+              <div className="mt-3 flex justify-end">
+                 <button onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { completed: true })} className="text-sm text-emerald-600 hover:bg-emerald-50 px-3 py-1 rounded font-bold border border-emerald-200 flex items-center gap-2"><CheckCircle2 size={14}/> Concluir</button>
               </div>
             </div>
           ))}
+          {planningTasks.filter(t => !t.completed).length === 0 && <p className="text-gray-400 text-center italic mt-10">Tudo limpo! Adicione tarefas à esquerda.</p>}
         </div>
       </div>
     </div>
@@ -302,7 +378,7 @@ function AdminApp({ onLogout, user }) {
         <p className="text-sm text-gray-700 whitespace-pre-wrap">{reportSummary || "Clique para gerar um resumo das atividades..."}</p>
       </div>
       <h2 className="text-xl font-bold mb-4 text-emerald-600">Concluído</h2>
-      <table className="w-full text-sm mb-8"><thead className="bg-gray-100"><tr><th className="p-2 text-left">Tarefa</th><th className="p-2 text-left">Data</th></tr></thead><tbody>{planningTasks.filter(t => t.completed).map(t => <tr key={t.id} className="border-b"><td className="p-2">{t.desc}</td><td className="p-2">{t.date}</td></tr>)}</tbody></table>
+      <table className="w-full text-sm mb-8"><thead className="bg-gray-100"><tr><th className="p-2 text-left">Tarefa</th><th className="p-2 text-left">Equipa</th><th className="p-2 text-left">Data</th></tr></thead><tbody>{planningTasks.filter(t => t.completed).map(t => <tr key={t.id} className="border-b"><td className="p-2">{t.desc}</td><td className="p-2 text-gray-500">{t.assignedTo}</td><td className="p-2">{t.date}</td></tr>)}</tbody></table>
     </div>
   );
 
@@ -328,23 +404,23 @@ function AdminApp({ onLogout, user }) {
   );
 }
 
-// === APP & WORKER (Login e Trabalhador mantêm-se iguais) ===
+// === APP & WORKER ===
 function App() {
   const [role, setRole] = useState(null); 
   const [user, setUser] = useState(null);
   useEffect(() => { signInAnonymously(auth); onAuthStateChanged(auth, setUser); }, []);
   if (!role) return (
-    <div className="h-screen bg-gray-900 flex items-center justify-center p-6">
-      <div className="bg-white p-8 rounded-2xl w-full max-w-sm text-center">
-        <div className="flex justify-center mb-6"><ClipboardCheck size={48} className="text-emerald-500"/></div>
-        <h1 className="text-3xl font-bold mb-8">CSM Manutenção</h1>
-        <button onClick={() => setRole('admin')} className="w-full bg-gray-100 p-4 rounded-xl mb-4 font-bold flex justify-between hover:bg-gray-200">Coordenação <ChevronRight/></button>
-        <button onClick={() => setRole('worker')} className="w-full bg-emerald-600 text-white p-4 rounded-xl font-bold flex justify-between hover:bg-emerald-700">Equipa Técnica <ChevronRight/></button>
+    <div className="h-screen bg-gradient-to-br from-emerald-900 to-gray-900 flex items-center justify-center p-6">
+      <div className="text-center w-full max-w-sm">
+        <div className="bg-white/10 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-md border border-white/20"><ClipboardCheck size={40} className="text-emerald-400"/></div>
+        <h1 className="text-3xl font-bold text-white mb-8">Complexo CSM</h1>
+        <button onClick={() => setRole('admin')} className="bg-white text-gray-900 w-full p-5 rounded-2xl flex items-center justify-between mb-4 font-bold text-lg hover:scale-105 transition-transform shadow-lg"><div className="flex items-center gap-3"><LayoutDashboard className="text-indigo-600"/> Coordenação</div><ChevronRight className="text-gray-400"/></button>
+        <button onClick={() => setRole('worker')} className="bg-white/10 backdrop-blur border border-white/20 text-white w-full p-5 rounded-2xl flex items-center justify-between font-bold text-lg hover:bg-white/20 transition-all"><div className="flex items-center gap-3"><Hammer className="text-emerald-400"/> Equipa Técnica</div><ChevronRight className="text-white/50"/></button>
       </div>
     </div>
   );
   if (role === 'admin') return <AdminApp onLogout={() => setRole(null)} user={user} />;
-  return <div className="p-10 text-center">Área do Trabalhador (Use a Coordenação para testar IA) <br/><button onClick={() => setRole(null)} className="mt-4 underline">Voltar</button></div>;
+  return <div className="p-10 text-center">Área do Trabalhador<br/><button onClick={() => setRole(null)} className="mt-4 underline">Voltar</button></div>;
 }
 
 const container = document.getElementById('root');
