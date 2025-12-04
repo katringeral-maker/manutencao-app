@@ -1,6 +1,5 @@
-/* eslint-disable */
+/* eslint-disable no-undef */
 import React, { useState, useRef, useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
 import { 
   ClipboardCheck, Building2, MapPin, CheckCircle2, XCircle, Save, 
   LayoutDashboard, ChevronRight, ChevronDown, Droplets, Lightbulb, 
@@ -9,8 +8,7 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, // <--- ESTE ERA O ÍCONE QUE FALTAVA E BLOQUEAVA A ATUALIZAÇÃO
-  FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList
+  RefreshCw, FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList, AlertCircle
 } from 'lucide-react';
 
 // FIREBASE IMPORTS
@@ -22,7 +20,6 @@ import {
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 // --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
-// Corrigido com base na sua Imagem 3 (manutencaoappcsm)
 const firebaseConfig = {
   apiKey: "AIzaSyAo6MPtHy6b-n0rKvZtuy_TCJPG8qye7oU", 
   authDomain: "manutencaoappcsm.firebaseapp.com", 
@@ -100,31 +97,27 @@ const BUILDINGS_DATA = [
 ];
 
 // === COMPONENTE PRINCIPAL ===
-function App() {
+export default function App() {
   const [role, setRole] = useState(null); 
   const [user, setUser] = useState(null);
   const [dbError, setDbError] = useState(null);
 
   useEffect(() => {
     if (auth) {
-        // Tenta autenticar e captura o erro REAL se falhar
         signInAnonymously(auth)
             .then(() => setDbError(null))
             .catch(e => {
                 console.error("Erro Detalhado:", e);
-                // AQUI MOSTRAMOS O ERRO REAL NO ECRÃ
                 setDbError(`ERRO: ${e.code} - ${e.message}. Verifique 'Authorized Domains' no Firebase.`);
             });
         onAuthStateChanged(auth, setUser);
     }
   }, []);
 
-  // Se não houver Firebase, mostra erro, mas permite tentar usar a app (para testes de UI)
-  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">Erro Crítico: Configuração do Firebase não encontrada no código.</div>;
+  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">Erro Crítico: Configuração do Firebase não encontrada.</div>;
 
   return (
     <>
-        {/* Barra de Erro Vermelha com Detalhes */}
         {dbError && (
             <div className="bg-red-600 text-white p-4 text-center text-sm font-bold fixed top-0 w-full z-[100] flex flex-col gap-2">
                 <span>{dbError}</span>
@@ -132,7 +125,6 @@ function App() {
             </div>
         )}
         
-        {/* A app carrega mesmo com erro, mas a base de dados pode falhar */}
         {!role ? <LoginScreen onSelectRole={setRole} /> : 
          role === 'admin' ? <AdminApp onLogout={() => setRole(null)} user={user} setDbError={setDbError} /> : 
          <WorkerApp onLogout={() => setRole(null)} user={user} />}
@@ -193,7 +185,7 @@ function LoginScreen({ onSelectRole }) {
           <div className="flex items-center gap-4"><div className="p-3 bg-emerald-500/20 rounded-xl group-hover:bg-emerald-500/30 transition-colors"><Hammer className="w-6 h-6 text-emerald-400" /></div><div className="text-left"><span className="block font-bold text-lg">Equipa Técnica</span><span className="text-sm text-emerald-200/70">Registo de trabalhos e fotos</span></div></div><ChevronRight className="w-5 h-5 text-white/50" />
         </button>
       </div>
-      <p className="mt-12 text-xs text-white/20">v3.0 Full Integrated System</p>
+      <p className="mt-12 text-xs text-white/20">v3.4 Full Integrated System</p>
     </div>
   );
 }
@@ -463,11 +455,7 @@ function AdminApp({ onLogout, user, setDbError }) {
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Gestão de Manutenção</h1>
         <div className="flex justify-center items-center gap-2 mb-8"><label className="text-sm font-medium">Data da Vistoria:</label><input type="date" className="p-2 border rounded" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)} /></div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-          {BUILDINGS_DATA.map((b) => (
-            <button key={b.id} onClick={() => setSelectedBuilding(b)} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-gray-100 flex flex-col items-center gap-4">
-              <div className="p-4 bg-emerald-50 rounded-full">{b.id === 'lar' ? <Home className="w-8 h-8 text-emerald-600" /> : <Building2 className="w-8 h-8 text-emerald-600" />}</div><span className="font-semibold text-gray-700">{b.name}</span>
-            </button>
-          ))}
+          {BUILDINGS_DATA.map((b) => (<button key={b.id} onClick={() => setSelectedBuilding(b)} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-gray-100 flex flex-col items-center gap-4"><div className="p-4 bg-emerald-50 rounded-full">{b.id === 'lar' ? <Home className="w-8 h-8 text-emerald-600" /> : <Building2 className="w-8 h-8 text-emerald-600" />}</div><span className="font-semibold text-gray-700">{b.name}</span></button>))}
         </div>
       </div>
     );
@@ -495,12 +483,7 @@ function AdminApp({ onLogout, user, setDbError }) {
                         <div className="flex items-center gap-3"><div className="p-2 bg-gray-100 rounded">{item.icon}</div><div><span className="font-medium block">{item.label}</span><span className="text-xs text-gray-400">{item.category}</span></div></div>
                         <div className="flex items-center gap-2"><label className={`p-2 rounded cursor-pointer border ${data.photo ? 'bg-blue-50 text-blue-600' : 'bg-white text-gray-400'}`}><input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(item.id, e)} /><Camera className="w-5 h-5" /></label><button onClick={() => handleCheck(item.id, 'ok')} className={`px-3 py-2 rounded border flex gap-2 ${data.status === 'ok' ? 'bg-emerald-500 text-white' : 'bg-white text-gray-400'}`}><CheckCircle2 className="w-5 h-5"/> OK</button><button onClick={() => handleCheck(item.id, 'nok')} className={`px-3 py-2 rounded border flex gap-2 ${data.status === 'nok' ? 'bg-red-500 text-white' : 'bg-white text-gray-400'}`}><XCircle className="w-5 h-5"/> Erro</button></div>
                       </div>
-                      {(isNok || data.photo) && (
-                        <div className="mt-4 pl-12 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
-                          {data.photo && (<div className="col-span-2 relative group"><img src={data.photo} className="h-40 object-cover rounded border" alt="Anomalia" /><div className="absolute top-2 left-2 flex gap-2"><button onClick={() => setAuditData(p => ({...p, [key]: {...p[key], photo: null}}))} className="bg-red-500 text-white p-1 rounded opacity-80 hover:opacity-100"><Trash2 className="w-4 h-4" /></button>{isNok && (<button onClick={() => handleAnalyzePhoto(item.id, selectedBuilding.id, selectedZone)} disabled={isAnalyzing} className="bg-indigo-600 text-white px-3 py-1 rounded flex items-center gap-2 text-sm shadow-md hover:bg-indigo-700 disabled:opacity-50">{isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin"/> : <Sparkles className="w-4 h-4 text-yellow-300"/>}{isAnalyzing ? 'A Analisar...' : 'Analisar com IA'}</button>)}</div></div>)}
-                          {isNok && (<><div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 mb-1">Causas (IA ou Manual)</label><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Ex: Desgaste..." value={data.details?.causes || ''} onChange={(e) => handleDetailChange(item.id, 'causes', e.target.value)}/></div><div><label className="block text-xs font-semibold text-gray-500 mb-1 flex justify-between"><span>Medidas (IA ou Manual)</span><button onClick={() => handleGetRecommendationText(item.id, selectedBuilding.id, selectedZone, data.details?.causes)} className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-[10px] border px-1 rounded bg-indigo-50"><Sparkles className="w-3 h-3"/> Pedir Solução</button></label><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Ex: Substituir..." value={data.details?.measures || ''} onChange={(e) => handleDetailChange(item.id, 'measures', e.target.value)}/></div><div><label className="block text-xs font-semibold text-gray-500 mb-1">Previsão</label><input type="date" className="w-full p-2 border rounded text-sm" value={data.details?.forecast || ''} onChange={(e) => handleDetailChange(item.id, 'forecast', e.target.value)}/></div></>)}
-                        </div>
-                      )}
+                      {(isNok || data.photo) && (<div className="mt-4 pl-12 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">{data.photo && (<div className="col-span-2 relative group"><img src={data.photo} className="h-40 object-cover rounded border" alt="Anomalia" /><div className="absolute top-2 left-2 flex gap-2"><button onClick={() => setAuditData(p => ({...p, [key]: {...p[key], photo: null}}))} className="bg-red-500 text-white p-1 rounded opacity-80 hover:opacity-100"><Trash2 className="w-4 h-4" /></button>{isNok && (<button onClick={() => handleAnalyzePhoto(item.id, selectedBuilding.id, selectedZone)} disabled={isAnalyzing} className="bg-indigo-600 text-white px-3 py-1 rounded flex items-center gap-2 text-sm shadow-md hover:bg-indigo-700 disabled:opacity-50">{isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin"/> : <Sparkles className="w-4 h-4 text-yellow-300"/>}{isAnalyzing ? 'A Analisar...' : 'Analisar com IA'}</button>)}</div></div>)}{isNok && (<><div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 mb-1">Causas (IA ou Manual)</label><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Ex: Desgaste..." value={data.details?.causes || ''} onChange={(e) => handleDetailChange(item.id, 'causes', e.target.value)}/></div><div><label className="block text-xs font-semibold text-gray-500 mb-1 flex justify-between"><span>Medidas (IA ou Manual)</span><button onClick={() => handleGetRecommendationText(item.id, selectedBuilding.id, selectedZone, data.details?.causes)} className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-[10px] border px-1 rounded bg-indigo-50"><Sparkles className="w-3 h-3"/> Pedir Solução</button></label><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Ex: Substituir..." value={data.details?.measures || ''} onChange={(e) => handleDetailChange(item.id, 'measures', e.target.value)}/></div><div><label className="block text-xs font-semibold text-gray-500 mb-1">Previsão</label><input type="date" className="w-full p-2 border rounded text-sm" value={data.details?.forecast || ''} onChange={(e) => handleDetailChange(item.id, 'forecast', e.target.value)}/></div></>)}</div>)}
                     </div>
                   );
                 })}
@@ -539,11 +522,7 @@ function AdminApp({ onLogout, user, setDbError }) {
             {planningTasks.map(t => (
                 <div key={t.id} className="p-3 border rounded bg-white hover:bg-gray-50">
                     <div className="flex justify-between items-start"><div className="text-sm flex-1"><span className="px-1 rounded text-xs bg-gray-100">{t.cat}</span><p className="font-medium mt-1">{t.desc}</p><span className="text-xs text-gray-400">{t.date}</span></div><button onClick={() => handleRemoveTask(t.id)} className="text-gray-400 hover:text-red-500"><X className="w-4 h-4"/></button></div>
-                    
-                    {/* AQUI ESTÁ A MUDANÇA PARA CAIXA DE TEXTO LIVRE */}
                     <div className="mt-2 pt-2 border-t flex gap-2"><div className="flex-1"><input type="text" className="text-xs border rounded p-1 w-full mb-1" placeholder="Nome funcionário..." value={t.assignedTo || ''} onChange={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { assignedTo: e.target.value })} /></div></div>
-
-                    {/* Botão AI e Inputs de Edição */}
                     <div className="mt-1 grid grid-cols-2 gap-2 relative">
                         <button onClick={() => handleEstimateTaskDetails(t)} disabled={estimatingTaskId === t.id} className="absolute -top-2 right-0 bg-indigo-50 text-indigo-600 p-1 rounded-full hover:bg-indigo-100 shadow-sm" title="IA: Calcular Tempo, Material e Medidas">{estimatingTaskId === t.id ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}</button>
                         <div><label className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> Duração</label><input type="text" className="w-full text-xs border rounded p-1" placeholder="Ex: 2h" defaultValue={t.duration || ''} onBlur={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { duration: e.target.value })}/></div>
@@ -556,7 +535,6 @@ function AdminApp({ onLogout, user, setDbError }) {
         </div>
         <div className="flex-1 p-6 overflow-y-auto print:hidden flex flex-col gap-6">
           <div className="flex justify-between items-center"><h2 className="text-2xl font-bold">Planeamento & Execução</h2><div className="flex gap-2"><button onClick={handleGenerateWhatsApp} disabled={isGeneratingText} className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 shadow-sm disabled:opacity-50">{isGeneratingText ? <Loader2 className="w-4 h-4 animate-spin"/> : <MessageSquare className="w-4 h-4" />}{isGeneratingText ? '...' : 'Gerar WhatsApp'}</button><button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 shadow-sm"><Printer className="w-4 h-4"/> Imprimir</button></div></div>
-          {/* Cabeçalho do Planeamento (Link Drive etc) */}
           <div className="bg-white p-4 rounded shadow-sm border border-gray-200 flex flex-col gap-4">
             <div className="flex gap-4"><div className="flex-1"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Início</label><input type="datetime-local" className="border rounded p-2 w-full" value={planning.startDate || ''} onChange={e => updatePlanningMeta({ startDate: e.target.value })} /></div><div className="flex-1"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fim</label><input type="datetime-local" className="border rounded p-2 w-full" value={planning.endDate || ''} onChange={e => updatePlanningMeta({ endDate: e.target.value })} /></div></div>
             <div className="border-t pt-4">
@@ -573,23 +551,67 @@ function AdminApp({ onLogout, user, setDbError }) {
             </div>
             <div className="border-t pt-4"><label className="block text-xs font-bold text-gray-500 uppercase mb-1 flex items-center gap-2"><LinkIcon className="w-3 h-3"/> Link do Plano (Drive)</label><div className="flex gap-2"><input type="text" className="border rounded p-2 w-full text-sm" placeholder="https://docs.google.com/..." value={planning.driveLink || ''} onChange={e => updatePlanningMeta({ driveLink: e.target.value })} />{planning.driveLink && (<a href={planning.driveLink} target="_blank" rel="noopener noreferrer" className="bg-gray-100 hover:bg-gray-200 p-2 rounded border text-gray-600" title="Abrir Link"><ExternalLink className="w-5 h-5"/></a>)}</div></div>
           </div>
-          {/* Tarefas do Dia */}
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 relative overflow-hidden"><div className="flex items-center gap-3 mb-4 z-10 relative"><div className="p-2 bg-blue-100 rounded-lg text-blue-700"><Clock className="w-6 h-6"/></div><h3 className="text-xl font-bold text-blue-900">Tarefas do Dia ({today})</h3></div>
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 relative overflow-hidden">
+             <div className="flex items-center gap-3 mb-4 z-10 relative"><div className="p-2 bg-blue-100 rounded-lg text-blue-700"><Clock className="w-6 h-6"/></div><h3 className="text-xl font-bold text-blue-900">Tarefas do Dia ({today})</h3></div>
              {todaysTasks.length === 0 ? <div className="text-blue-400 text-sm italic py-4">Sem tarefas para hoje.</div> : (
-                 <div className="grid grid-cols-1 gap-3">{todaysTasks.map(t => (<div key={t.id} className={`bg-white p-4 rounded-lg shadow-sm border ${t.completed ? 'border-emerald-200 bg-emerald-50' : 'border-blue-100'} flex justify-between items-center transition-all`}><div><p className={`font-bold ${t.completed ? 'text-emerald-800 line-through' : 'text-gray-800'}`}>{t.desc}</p><div className="flex gap-2 mt-1"><span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-block">{t.cat}</span><div className="text-sm font-semibold text-blue-600 flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-full border border-blue-100"><User className="w-3 h-3"/> {t.assignedTo || 'Por atribuir'}</div></div></div><div className="flex items-center gap-3"><input type="checkbox" checked={t.completed} onChange={() => handleToggleTask(t.id, t.completed)} className="w-6 h-6 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer" /></div></div>))}</div>
+                 <div className="grid grid-cols-1 gap-3">
+                     {todaysTasks.map(t => (
+                         <div key={t.id} className={`bg-white p-4 rounded-lg shadow-sm border ${t.completed ? 'border-emerald-200 bg-emerald-50' : 'border-blue-100'} flex justify-between items-center transition-all`}>
+                             <div>
+                                 <p className={`font-bold ${t.completed ? 'text-emerald-800 line-through' : 'text-gray-800'}`}>{t.desc}</p>
+                                 <div className="flex gap-2 mt-1">
+                                     <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full inline-block">{t.cat}</span>
+                                     <div className="text-sm font-semibold text-blue-600 flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-full border border-blue-100"><User className="w-3 h-3"/> {t.assignedTo || 'Por atribuir'}</div>
+                                 </div>
+                                 {(t.duration || t.materials) && (
+                                    <div className="flex gap-3 mt-2 text-xs text-gray-500">
+                                         {t.duration && <span className="flex items-center gap-1"><Clock className="w-3 h-3"/> {t.duration}</span>}
+                                         {t.materials && <span className="flex items-center gap-1"><Package className="w-3 h-3"/> {t.materials}</span>}
+                                    </div>
+                                 )}
+                             </div>
+                             <div className="flex items-center gap-3">
+                                 {t.completed && <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Concluído</span>}
+                                 <input type="checkbox" checked={t.completed} onChange={() => handleToggleTask(t.id, t.completed)} className="w-6 h-6 text-emerald-600 rounded focus:ring-emerald-500 cursor-pointer" />
+                             </div>
+                          </div>
+                     ))}
+                 </div>
              )}
           </div>
-          {/* Lista Completa */}
-          <div className="bg-white p-6 rounded shadow space-y-4"><h3 className="font-bold text-gray-700 border-b pb-2 flex items-center gap-2"><ListTodo className="w-5 h-5"/> Lista Completa de Tarefas</h3>{planningTasks.map(t => (<div key={t.id} className={`p-4 border rounded ${t.completed ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-gray-200'}`}><div className="flex justify-between items-start"><div className="flex gap-3"><input type="checkbox" checked={t.completed} onChange={() => handleToggleTask(t.id, t.completed)} className="mt-1 w-5 h-5" /><div><div className={t.completed ? 'line-through text-emerald-700' : 'font-medium'}>{t.desc} <span className="text-gray-400 text-xs font-normal ml-2">({t.date})</span></div><div className="text-sm text-indigo-600 mt-1"><User className="w-3 h-3 inline mr-1"/>{t.assignedTo || 'Por atribuir'}</div>{t.recommendation && <div className="text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded border border-gray-200 flex items-start gap-2"><Info className="w-4 h-4 text-indigo-500 flex-shrink-0" /><span>{t.recommendation}</span></div>}
-          {/* Infos Extras: Tempo/Material/Obs */}
-          <div className="mt-2 text-xs text-gray-500 grid grid-cols-2 gap-2">
-             {t.duration && <div>⏱️ {t.duration}</div>}
-             {t.materials && <div className="col-span-2">📦 {t.materials}</div>}
-             {t.measures && <div className="col-span-2">📏 {t.measures}</div>}
-             {t.observations && <div className="col-span-2 text-blue-600 italic">📝 Coord: {t.observations}</div>}
-             {t.workerObservations && <div className="col-span-2 text-emerald-600 italic">👷 Obra: {t.workerObservations}</div>}
+          <div className="bg-white p-6 rounded shadow space-y-4">
+            <h3 className="font-bold text-gray-700 border-b pb-2 flex items-center gap-2"><ListTodo className="w-5 h-5"/> Lista Completa de Tarefas</h3>
+            {planningTasks.map(t => (
+                <div key={t.id} className={`p-4 border rounded ${t.completed ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-gray-200'}`}>
+                    <div className="flex justify-between items-start">
+                        <div className="flex gap-3">
+                            <input type="checkbox" checked={t.completed} onChange={() => handleToggleTask(t.id, t.completed)} className="mt-1 w-5 h-5" />
+                            <div>
+                                <div className={t.completed ? 'line-through text-emerald-700' : 'font-medium'}>{t.desc} <span className="text-gray-400 text-xs font-normal ml-2">({t.date})</span></div>
+                                <div className="text-sm text-indigo-600 mt-1"><User className="w-3 h-3 inline mr-1"/>{t.assignedTo || 'Por atribuir'}</div>
+                                {t.recommendation && <div className="text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded border border-gray-200 flex items-start gap-2"><Info className="w-4 h-4 text-indigo-500 flex-shrink-0" /><span>{t.recommendation}</span></div>}
+                                
+                                {/* AQUI: Mostrar Observações dos Trabalhadores para a Coordenação */}
+                                {t.observations && (
+                                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-900">
+                                    <strong className="flex items-center gap-1 mb-1 text-yellow-700 uppercase text-xs"><Clock className="w-3 h-3"/> Ponto de Situação (Obra):</strong>
+                                    <div className="whitespace-pre-wrap font-mono text-xs">{t.observations}</div>
+                                  </div>
+                                )}
+
+                                {(t.duration || t.materials) && (
+                                    <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                                         {t.duration && <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded"><Clock className="w-3 h-3"/> {t.duration}</span>}
+                                         {t.materials && <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded"><Package className="w-3 h-3"/> {t.materials}</span>}
+                                    </div>
+                                 )}
+                            </div>
+                        </div>
+                        <button onClick={() => handleRemoveTask(t.id)}><Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500"/></button>
+                    </div>
+                </div>
+            ))}
           </div>
-          </div></div><button onClick={() => handleRemoveTask(t.id)}><Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500"/></button></div></div>))}</div>
         </div>
       </div>
     );
@@ -602,18 +624,17 @@ function AdminApp({ onLogout, user, setDbError }) {
       <div className="max-w-6xl mx-auto p-8 bg-white min-h-screen relative">
         {signingRole && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-6 rounded shadow-xl"><canvas ref={canvasRef} width={460} height={200} className="border border-dashed bg-gray-50" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} /><div className="flex justify-between mt-4"><button onClick={clearSignature} className="px-4 py-2 bg-gray-100 rounded">Limpar</button><button onClick={saveSignature} className="px-4 py-2 bg-emerald-600 text-white rounded">Guardar</button></div></div></div>}
         <div className="flex justify-between items-start border-b-2 border-emerald-600 pb-4 mb-8">
-            <div><h1 className="text-3xl font-bold uppercase">Relatório</h1><div className="mt-2 flex items-center gap-4 print:hidden"><select value={reportType} onChange={e => setReportType(e.target.value)} className="border rounded p-1 text-sm"><option value="daily">Diário</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="annual">Anual</option></select><input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className="border rounded p-1 text-sm"/></div><p className="text-emerald-700 font-semibold mt-2">{getPeriodLabel()}</p></div>
-            <div className="flex gap-2">
-                <button onClick={() => handleGenerateReportEmail(filteredAnomalies, filteredTasks)} disabled={isGeneratingText} className="print:hidden bg-indigo-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-indigo-700">{isGeneratingText ? <Loader2 className="w-4 h-4 animate-spin"/> : <Mail className="w-4 h-4"/>} Gerar Email</button>
-                <button onClick={() => handleExportToSheets(filteredTasks)} className="print:hidden bg-green-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-green-700"><FileSpreadsheet className="w-4 h-4"/> Exportar Sheets</button>
-                <button onClick={handlePrint} className="print:hidden bg-emerald-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-emerald-700"><Printer className="w-4 h-4"/> Imprimir</button>
-            </div>
+          <div><h1 className="text-3xl font-bold uppercase">Relatório</h1><div className="mt-2 flex items-center gap-4 print:hidden"><select value={reportType} onChange={e => setReportType(e.target.value)} className="border rounded p-1 text-sm"><option value="daily">Diário</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="annual">Anual</option></select><input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className="border rounded p-1 text-sm"/></div><p className="text-emerald-700 font-semibold mt-2">{getPeriodLabel()}</p></div>
+          <div className="flex gap-2">
+              <button onClick={() => handleGenerateReportEmail(filteredAnomalies, filteredTasks)} disabled={isGeneratingText} className="print:hidden bg-indigo-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-indigo-700">{isGeneratingText ? <Loader2 className="w-4 h-4 animate-spin"/> : <Mail className="w-4 h-4"/>} Gerar Email</button>
+              <button onClick={() => handleExportToSheets(filteredTasks)} className="print:hidden bg-green-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-green-700"><FileSpreadsheet className="w-4 h-4"/> Exportar Sheets</button>
+              <button onClick={handlePrint} className="print:hidden bg-emerald-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-emerald-700"><Printer className="w-4 h-4"/> Imprimir</button>
+          </div>
         </div>
         <section className="mb-8 bg-indigo-50 p-6 rounded-lg border border-indigo-100 print:bg-white print:border-gray-200"><div className="flex justify-between items-start mb-2"><h2 className="text-lg font-bold text-indigo-900 flex items-center gap-2"><Sparkles className="w-5 h-5"/> Resumo Executivo (IA)</h2><button onClick={() => handleGenerateReportSummary(filteredAnomalies, filteredTasks)} disabled={isGeneratingSummary} className="print:hidden text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-50">{isGeneratingSummary ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}{isGeneratingSummary ? 'A Gerar...' : 'Gerar Resumo'}</button></div><p className="text-sm text-gray-700 italic leading-relaxed whitespace-pre-line">{reportSummary || "Clique em 'Gerar Resumo' para que a IA analise os dados deste período."}</p></section>
         <section className="mb-10"><h2 className="text-xl font-bold mb-4 border-b pb-2 flex items-center gap-2 text-red-600"><AlertTriangle className="w-5 h-5"/> Anomalias Detetadas ({filteredAnomalies.length})</h2><table className="w-full text-sm border-collapse"><thead className="bg-gray-100"><tr><th className="p-2 border text-left">Data</th><th className="p-2 border text-left">Local</th><th className="p-2 border text-left">Problema</th><th className="p-2 border text-left">Medidas</th><th className="p-2 border text-center">Foto</th></tr></thead><tbody>{filteredAnomalies.length === 0 ? <tr><td colSpan="5" className="p-4 text-center text-gray-500 italic">Sem anomalias.</td></tr> : filteredAnomalies.map((e, i) => (<tr key={i} className="border-b"><td className="p-2 border font-medium text-xs">{e.date}</td><td className="p-2 border"><strong>{e.building?.name}</strong><br/>{e.zone}</td><td className="p-2 border">{e.item?.label} <br/> <span className="text-xs text-gray-500">{e.details?.causes}</span></td><td className="p-2 border">{e.details?.measures}</td><td className="p-2 border text-center">{e.photo ? <img src={e.photo} className="h-12 w-12 object-cover mx-auto rounded border"/> : '-'}</td></tr>))}</tbody></table></section>
         <section className="mb-10"><h2 className="text-xl font-bold mb-4 border-b pb-2 flex items-center gap-2 text-emerald-600"><CheckCircle2 className="w-5 h-5"/> Trabalhos Concluídos ({filteredTasks.length})</h2>
         <table className="w-full text-sm border-collapse"><thead className="bg-gray-100"><tr><th className="p-2 border text-left">Data</th><th className="p-2 border text-left">Tarefa</th><th className="p-2 border text-left">Executado Por</th><th className="p-2 border text-left">Tempo</th><th className="p-2 border text-left">Observações</th><th className="p-2 border text-center">Foto</th></tr></thead><tbody>{filteredTasks.length === 0 ? <tr><td colSpan="6" className="p-4 text-center text-gray-500 italic">Sem tarefas concluídas.</td></tr> : filteredTasks.map((t, i) => (<tr key={i} className="border-b"><td className="p-2 border text-xs">{t.date}</td><td className="p-2 border font-medium">{t.desc}</td><td className="p-2 border text-gray-600">{t.completedBy || t.assignedTo}</td><td className="p-2 border">{t.duration || '-'}</td><td className="p-2 border text-xs italic">{t.observations} {t.workerObservations}</td><td className="p-2 border text-center">{t.completionPhoto ? <img src={t.completionPhoto} className="h-12 w-12 object-cover mx-auto rounded border"/> : '-'}</td></tr>))}</tbody></table></section>
-        {/* Assinaturas */}
         <div className="mt-16 grid grid-cols-2 gap-20"><div className="text-center">{signatures.responsible ? <img src={signatures.responsible} className="h-24 mx-auto object-contain" /> : <button onClick={() => setSigningRole('responsible')} className="print:hidden border px-3 py-1 rounded text-sm mb-4">Assinar</button>}<div className="border-t border-black pt-2 text-sm font-bold">Responsável Manutenção</div></div><div className="text-center">{signatures.client ? <img src={signatures.client} className="h-24 mx-auto object-contain" /> : <button onClick={() => setSigningRole('client')} className="print:hidden border px-3 py-1 rounded text-sm mb-4">Assinar</button>}<div className="border-t border-black pt-2 text-sm font-bold">Administração</div></div></div>
       </div>
     );
@@ -623,7 +644,7 @@ function AdminApp({ onLogout, user, setDbError }) {
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800 h-screen">
       <style>{`@media print { header, nav, aside, .print\\:hidden, .chat-widget { display: none !important; } #print-planning, #print-planning * { visibility: visible; } }`}</style>
       <div className="bg-white border-b px-4 pt-4 shadow-sm print:hidden">
-        <div className="flex items-center gap-2 font-bold text-xl text-emerald-800 mb-4"><ClipboardCheck className="w-6 h-6"/> Manutenção App 2.0 <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full ml-2 flex items-center gap-1"><Sparkles className="w-3 h-3"/> AI Powered</span></div>
+        <div className="flex items-center gap-2 font-bold text-xl text-emerald-800 mb-4"><ClipboardCheck className="w-6 h-6"/> Manutenção App 3.3 <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full ml-2 flex items-center gap-1"><Sparkles className="w-3 h-3"/> AI Powered</span></div>
         <div className="flex gap-6">{['inspection','planning','report'].map(v => <button key={v} onClick={() => setCurrentView(v)} className={`pb-3 px-2 border-b-2 capitalize ${currentView===v?'border-emerald-500 text-emerald-600':'border-transparent'}`}>{v === 'inspection' ? 'Vistoria' : v === 'planning' ? 'Planeamento' : 'Relatório'}</button>)}</div>
         <button onClick={onLogout} className="absolute top-4 right-4 bg-gray-100 hover:bg-gray-200 p-2 rounded-full"><LogOut className="w-5 h-5 text-gray-600"/></button>
       </div>
@@ -633,24 +654,21 @@ function AdminApp({ onLogout, user, setDbError }) {
         {currentView === 'report' && <div className="h-full overflow-y-auto">{renderReport()}</div>}
       </div>
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2 chat-widget print:hidden">
-        {isChatOpen && (
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 w-80 h-96 flex flex-col animate-in fade-in slide-in-from-bottom-4">
-            <div className="bg-indigo-600 text-white p-3 rounded-t-xl flex justify-between items-center"><span className="font-bold flex items-center gap-2"><Bot className="w-5 h-5"/> Assistente Técnico</span><button onClick={() => setIsChatOpen(false)}><X className="w-4 h-4 hover:text-indigo-200"/></button></div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">{chatMessages.map((msg, i) => <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`p-3 rounded-lg text-sm max-w-[85%] ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-white border text-gray-800'}`}>{msg.text}</div></div>)}{isChatLoading && <div className="flex justify-start"><div className="bg-white border p-3 rounded-lg"><Loader2 className="w-4 h-4 animate-spin text-indigo-600"/></div></div>}<div ref={chatEndRef}></div></div>
-            <form onSubmit={handleChatSubmit} className="p-3 border-t bg-white rounded-b-xl flex gap-2"><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Dúvida técnica..." className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" /><button type="submit" disabled={isChatLoading} className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"><Send className="w-4 h-4"/></button></form>
-          </div>
-        )}
-        <button onClick={() => setIsChatOpen(!isChatOpen)} className="bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-full shadow-lg transition-all transform hover:scale-105">{isChatOpen ? <X className="w-6 h-6"/> : <MessageSquare className="w-6 h-6"/>}</button>
+        {isChatOpen && (<div className="bg-white rounded-xl shadow-2xl border border-gray-200 w-80 h-96 flex flex-col animate-in fade-in slide-in-from-bottom-4"><div className="bg-indigo-600 text-white p-3 rounded-t-xl flex justify-between items-center"><span className="font-bold flex items-center gap-2"><Bot className="w-5 h-5"/> Assistente Técnico</span><button onClick={() => setIsChatOpen(false)}><X className="w-4 h-4 hover:text-indigo-200"/></button></div><div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">{chatMessages.map((msg, i) => <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`p-3 rounded-lg text-sm max-w-[85%] ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-white border text-gray-800'}`}>{msg.text}</div></div>)}{isChatLoading && <div className="flex justify-start"><div className="bg-white border p-3 rounded-lg"><Loader2 className="w-4 h-4 animate-spin text-indigo-600"/></div></div>}<div ref={chatEndRef}></div></div><form onSubmit={handleChatSubmit} className="p-3 border-t bg-white rounded-b-xl flex gap-2"><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Dúvida técnica..." className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" /><button type="submit" disabled={isChatLoading} className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"><Send className="w-4 h-4"/></button></form></div>)}<button onClick={() => setIsChatOpen(!isChatOpen)} className="bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-full shadow-lg transition-all transform hover:scale-105">{isChatOpen ? <X className="w-6 h-6"/> : <MessageSquare className="w-6 h-6"/>}</button>
       </div>
     </div>
   );
 }
 
-// === WORKER APP ===
+// === WORKER APP (COM BOTÃO "EM CURSO") ===
 function WorkerApp({ onLogout, user }) {
   const [selectedWorker, setSelectedWorker] = useState(localStorage.getItem('workerName') || '');
   const [inputName, setInputName] = useState(''); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [uploading, setUploading] = useState(null); const [newTaskDesc, setNewTaskDesc] = useState(''); const [newTaskPhoto, setNewTaskPhoto] = useState(null); const [isReporting, setIsReporting] = useState(false); const [isImporting, setIsImporting] = useState(false);
-  const [showWorksheet, setShowWorksheet] = useState(false); // NOVO STATE PARA FOLHA DE OBRA
+  const [showWorksheet, setShowWorksheet] = useState(false); 
+  
+  // NOVOS ESTADOS PARA O BOTAO EM CURSO
+  const [updatingTaskId, setUpdatingTaskId] = useState(null);
+  const [updateText, setUpdateText] = useState('');
 
   useEffect(() => {
     if (!user) return;
@@ -671,6 +689,28 @@ function WorkerApp({ onLogout, user }) {
   const handlePhotoUpload = async (e, taskId) => { const f = e.target.files[0]; if (!f) return; setUploading(taskId); const r = new FileReader(); r.onloadend = async () => { try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completionPhoto: r.result, completed: true, completedAt: new Date().toISOString(), completedBy: selectedWorker }); } catch (err) { alert("Erro."); } setUploading(null); }; r.readAsDataURL(f); };
   const handleFileImport = (e) => { const f = e.target.files[0]; if (!f) return; setIsImporting(true); const r = new FileReader(); r.onload = async (event) => { const t = event.target.result; const l = t.split('\n'); let c = 0; for (let i=0; i<l.length; i++) { const line = l[i].trim(); if (!line) continue; const s = line.includes(';') ? ';' : ','; const cols = line.split(s); if (cols.length >= 2) { const desc = cols[1].trim().replace(/^"|"$/g, ''); if (desc) { try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: desc, cat: cols[2]?.trim() || 'Geral', date: cols[0].trim() || new Date().toISOString().split('T')[0], assignedTo: 'Importado', completed: false, createdAt: new Date().toISOString() }); c++; } catch (err) {} } } } setIsImporting(false); alert(`${c} tarefas importadas!`); }; r.readAsText(f); };
 
+  // --- NOVA FUNÇÃO: GUARDAR ATUALIZAÇÃO DIÁRIA ---
+  const handleSaveUpdate = async (task) => {
+    if (!updateText.trim()) return;
+    const timestamp = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+    const newEntry = `${timestamp} - ${selectedWorker}: ${updateText}`;
+    
+    // Adiciona ao texto existente ou cria novo
+    const currentObs = task.observations ? task.observations + '\n' + newEntry : newEntry;
+
+    try {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), {
+        observations: currentObs,
+        lastUpdate: new Date().toISOString()
+      });
+      setUpdateText('');
+      setUpdatingTaskId(null);
+      alert("Atualização registada!");
+    } catch (e) {
+      alert("Erro ao guardar atualização.");
+    }
+  };
+
   const myTasks = tasks.filter(t => { const a = t.assignedTo || ''; return a.toLowerCase().includes(selectedWorker.toLowerCase()) || a.toLowerCase().includes('equipa') || a.toLowerCase().includes('todos') || a.toLowerCase().includes('importado') || t.cat === 'Detetado em Obra'; });
   const pendingTasks = myTasks.filter(t => !t.completed);
   const today = new Date().toISOString().split('T')[0];
@@ -682,7 +722,7 @@ function WorkerApp({ onLogout, user }) {
     <div className="min-h-screen bg-gray-50 pb-24 font-sans">
       <header className="bg-white border-b sticky top-0 z-10 px-5 py-4 shadow-sm flex justify-between items-center"><div><h2 className="font-bold text-xl text-gray-900 flex items-center gap-2">{selectedWorker}</h2><div className="flex items-center gap-2 mt-1"><span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span><p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Online</p></div></div><div className="flex gap-2"><button onClick={() => setShowWorksheet(true)} className="p-2 bg-indigo-50 rounded-xl text-indigo-600 hover:bg-indigo-100 transition-colors flex items-center gap-2"><FileText className="w-5 h-5"/><span className="hidden md:inline text-xs font-bold">Folha Obra</span></button><label className="p-2 bg-blue-50 rounded-xl text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer flex items-center justify-center"><input type="file" accept=".csv,.txt" className="hidden" onChange={handleFileImport} disabled={isImporting} />{isImporting ? <RefreshCw className="w-5 h-5 animate-spin"/> : <UploadCloud className="w-5 h-5" />}</label><button onClick={handleLogoutWorker} className="p-2 bg-gray-100 rounded-xl text-gray-500 hover:bg-red-50 transition-colors"><LogOut className="w-5 h-5" /></button></div></header>
       
-      {/* MODAL FOLHA DE OBRA (NOVO) */}
+      {/* MODAL FOLHA DE OBRA */}
       {showWorksheet && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
@@ -721,8 +761,46 @@ function WorkerApp({ onLogout, user }) {
                     <h4 className="font-bold text-gray-800 text-lg leading-snug mb-3">{task.desc}</h4>
                     {task.initialPhoto && <div className="mb-3"><span className="text-[10px] text-gray-400 uppercase font-bold">Foto do Problema:</span><img src={task.initialPhoto} alt="Anomalia" className="h-24 w-full object-cover rounded-lg border border-gray-100 mt-1" /></div>}
                     {task.recommendation && <div className="mb-4 bg-amber-50 p-3 rounded-xl border border-amber-100 text-sm text-amber-800 flex gap-3 items-start"><AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" /><span className="leading-snug">{task.recommendation}</span></div>}
+                    
+                    {/* ZONA DE INPUT "EM CURSO" */}
+                    {updatingTaskId === task.id ? (
+                      <div className="mb-4 p-3 bg-yellow-50 rounded-xl border border-yellow-200 animate-in fade-in">
+                        <label className="text-xs font-bold text-yellow-800 mb-1 block">Motivo / Ponto de Situação:</label>
+                        <textarea 
+                          className="w-full p-2 border rounded text-sm mb-2" 
+                          rows={2} 
+                          placeholder="Ex: Terminei a parte elétrica, falta pintar..."
+                          value={updateText}
+                          onChange={(e) => setUpdateText(e.target.value)}
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <button onClick={() => setUpdatingTaskId(null)} className="px-3 py-1 bg-white border rounded text-gray-500 text-sm">Cancelar</button>
+                          <button onClick={() => handleSaveUpdate(task)} className="px-3 py-1 bg-yellow-500 text-white rounded text-sm font-bold flex-1">Guardar Atualização</button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* MOSTRAR OBSERVAÇÕES ANTERIORES */}
+                    {task.observations && (
+                      <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-600 font-mono whitespace-pre-wrap">
+                        <strong className="block text-gray-400 mb-1">Histórico:</strong>
+                        {task.observations}
+                      </div>
+                    )}
+
                     <div className="flex gap-3 mt-5">
-                      <label className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer font-bold text-sm transition-all border ${uploading === task.id ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, task.id)} disabled={uploading === task.id} />{uploading === task.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}<span>{uploading === task.id ? 'A enviar...' : 'Foto & Feito'}</span></label><button onClick={() => handleCompleteTask(task.id, task.completed)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all"><CheckCircle2 className="w-5 h-5" /></button>
+                      {/* BOTÃO EM CURSO */}
+                      <button 
+                        onClick={() => { setUpdatingTaskId(task.id); setUpdateText(''); }}
+                        className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 py-3 px-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold text-[10px] transition-all border border-yellow-200 w-20"
+                      >
+                        <Clock className="w-5 h-5" />
+                        <span>Em Curso</span>
+                      </button>
+
+                      <label className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer font-bold text-sm transition-all border ${uploading === task.id ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, task.id)} disabled={uploading === task.id} />{uploading === task.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}<span>{uploading === task.id ? 'A enviar...' : 'Foto & Feito'}</span></label>
+                      <button onClick={() => handleCompleteTask(task.id, task.completed)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all"><CheckCircle2 className="w-5 h-5" /></button>
                     </div>
                   </div>
                   {(task.duration || task.materials) && (<div className="ml-2 mt-3 pt-3 border-t border-gray-100 flex gap-4 text-xs text-gray-500">{task.duration && <div className="flex items-center gap-1"><Clock className="w-3 h-3"/> {task.duration}</div>}{task.materials && <div className="flex items-center gap-1"><Package className="w-3 h-3"/> {task.materials}</div>}</div>)}
@@ -738,7 +816,3 @@ function WorkerApp({ onLogout, user }) {
     </div>
   );
 }
-
-// === MONTAGEM DO APP ===
-const container = document.getElementById('root');
-if (container) { const root = createRoot(container); root.render(<React.StrictMode><App /></React.StrictMode>); }
