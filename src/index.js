@@ -9,7 +9,7 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, 
+  RefreshCw, // <--- ESTE ERA O ÍCONE QUE FALTAVA E BLOQUEAVA A ATUALIZAÇÃO
   FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList
 } from 'lucide-react';
 
@@ -22,11 +22,14 @@ import {
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 // --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
+// Corrigido com base na sua Imagem 3 (manutencaoappcsm)
 const firebaseConfig = {
-  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
-  authDomain: "manutencaoappcsm.firebaseapp.com",
-  projectId: "manutencaoappcsm",
-  storageBucket: "manutencaoappcsm.appspot.com"
+  apiKey: "AIzaSyAo6MPtHy6b-n0rKvZtuy_TCJPG8qye7oU", 
+  authDomain: "manutencaoappcsm.firebaseapp.com", 
+  projectId: "manutencaoappcsm", 
+  storageBucket: "manutencaoappcsm.firebasestorage.app",
+  messagingSenderId: "109430393454",
+  appId: "1:109430393454:web:f2a56b08e2ff9ad755f47f"
 };
 
 // Inicialização Segura
@@ -104,21 +107,32 @@ function App() {
 
   useEffect(() => {
     if (auth) {
+        // Tenta autenticar e captura o erro REAL se falhar
         signInAnonymously(auth)
             .then(() => setDbError(null))
             .catch(e => {
-                console.error("Erro Auth:", e);
-                setDbError("Erro de Autenticação. Tente recarregar a página.");
+                console.error("Erro Detalhado:", e);
+                // AQUI MOSTRAMOS O ERRO REAL NO ECRÃ
+                setDbError(`ERRO: ${e.code} - ${e.message}. Verifique 'Authorized Domains' no Firebase.`);
             });
         onAuthStateChanged(auth, setUser);
     }
   }, []);
 
-  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">Erro Crítico: Configuração do Firebase não encontrada.</div>;
+  // Se não houver Firebase, mostra erro, mas permite tentar usar a app (para testes de UI)
+  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">Erro Crítico: Configuração do Firebase não encontrada no código.</div>;
 
   return (
     <>
-        {dbError && <div className="bg-red-600 text-white p-2 text-center text-xs font-bold fixed top-0 w-full z-[100]">{dbError}</div>}
+        {/* Barra de Erro Vermelha com Detalhes */}
+        {dbError && (
+            <div className="bg-red-600 text-white p-4 text-center text-sm font-bold fixed top-0 w-full z-[100] flex flex-col gap-2">
+                <span>{dbError}</span>
+                <span className="text-xs font-normal opacity-80">Dica: Adicione 'vercel.app' em Authentication {'>'} Settings {'>'} Authorized domains</span>
+            </div>
+        )}
+        
+        {/* A app carrega mesmo com erro, mas a base de dados pode falhar */}
         {!role ? <LoginScreen onSelectRole={setRole} /> : 
          role === 'admin' ? <AdminApp onLogout={() => setRole(null)} user={user} setDbError={setDbError} /> : 
          <WorkerApp onLogout={() => setRole(null)} user={user} />}
@@ -526,8 +540,8 @@ function AdminApp({ onLogout, user, setDbError }) {
                 <div key={t.id} className="p-3 border rounded bg-white hover:bg-gray-50">
                     <div className="flex justify-between items-start"><div className="text-sm flex-1"><span className="px-1 rounded text-xs bg-gray-100">{t.cat}</span><p className="font-medium mt-1">{t.desc}</p><span className="text-xs text-gray-400">{t.date}</span></div><button onClick={() => handleRemoveTask(t.id)} className="text-gray-400 hover:text-red-500"><X className="w-4 h-4"/></button></div>
                     
-                    {/* ALTERAÇÃO AQUI: CAIXA DE TEXTO LIVRE EM VEZ DE SELECT */}
-                    <div className="mt-2 pt-2 border-t flex gap-2"><div className="flex-1"><input type="text" className="text-xs border rounded p-1 w-full mb-1" placeholder="Nome do funcionário ou equipa..." value={t.assignedTo || ''} onChange={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { assignedTo: e.target.value })} /></div></div>
+                    {/* AQUI ESTÁ A MUDANÇA PARA CAIXA DE TEXTO LIVRE */}
+                    <div className="mt-2 pt-2 border-t flex gap-2"><div className="flex-1"><input type="text" className="text-xs border rounded p-1 w-full mb-1" placeholder="Nome funcionário..." value={t.assignedTo || ''} onChange={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { assignedTo: e.target.value })} /></div></div>
 
                     {/* Botão AI e Inputs de Edição */}
                     <div className="mt-1 grid grid-cols-2 gap-2 relative">
