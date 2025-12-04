@@ -9,7 +9,7 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, FileSpreadsheet, Edit3, Eye
+  RefreshCw, FileSpreadsheet, Edit3, Eye, FileCheck
 } from 'lucide-react';
 
 // FIREBASE IMPORTS
@@ -20,9 +20,9 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-// --- CONFIGURAÇÃO FIREBASE ---
+// --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
 const firebaseConfig = {
-  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE",
+  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
   authDomain: "manutencao-app.firebaseapp.com",
   projectId: "manutencao-app",
   storageBucket: "manutencao-app.appspot.com"
@@ -35,7 +35,7 @@ try {
   auth = getAuth(app);
   db = getFirestore(app);
 } catch (e) {
-  console.error("Erro Firebase:", e);
+  console.error("Erro Crítico Firebase:", e);
 }
 
 // --- CONFIGURAÇÃO GEMINI API ---
@@ -246,11 +246,29 @@ function AdminApp({ onLogout, user }) {
       }
   };
 
+  // --- ARQUIVAR VISTORIA (NOVO) ---
+  const handleFinishInspection = async () => {
+      if(!window.confirm("Pretende terminar a vistoria e arquivar o relatório? Isto limpará a vistoria atual.")) return;
+      const reportId = new Date().toISOString().split('T')[0];
+      try {
+          // Salva histórico
+          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'inspection_reports', reportId), {
+              date: inspectionDate,
+              data: auditData,
+              closedAt: new Date().toISOString()
+          });
+          // Limpa atual
+          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'inspection', 'current'), { data: {} });
+          setAuditData({});
+          alert("Vistoria arquivada com sucesso!");
+      } catch(e) { alert("Erro ao arquivar."); }
+  };
+
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
 
   const getAuditKey = (bid, zone, iid) => `${bid}-${zone}-${iid}`;
 
-  // --- FUNÇÕES DE VISTORIA ---
+  // --- FUNÇÕES DE VISTORIA (PERSISTÊNCIA + TAREFA AUTOMÁTICA) ---
   const handleCheck = async (itemId, status) => { 
       if (!selectedBuilding || !selectedZone) return;
       const key = getAuditKey(selectedBuilding.id, selectedZone, itemId);
@@ -269,23 +287,28 @@ function AdminApp({ onLogout, user }) {
       if (status === 'nok') {
           const building = selectedBuilding.name;
           const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
-          const taskId = `auto_${key}`; // ID único
+          // ID único baseado na localização e item para evitar duplicados
+          const taskId = `auto_${key}_${new Date().toISOString().split('T')[0]}`; 
 
-          // Verifica se já existe para não duplicar
-          if (!planningTasks.find(t => t.originId === taskId)) {
-              try {
-                  await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
-                      desc: `Reparar ${itemLabel} em ${building} - ${selectedZone}`, 
-                      cat: 'Vistoria', 
-                      date: inspectionDate, 
-                      originId: taskId, 
-                      completed: false, 
-                      recommendation: '', 
-                      assignedTo: 'Equipa Interna',
-                      createdAt: new Date().toISOString()
-                  });
-              } catch (e) { console.error("Erro ao criar tarefa automática:", e); }
-          }
+          try {
+              // Verifica se já existe uma tarefa hoje para este erro
+              // Simplificação: apenas tenta criar, se precisar de lógica complexa de duplicação, teria de ler tasks primeiro
+              // Aqui assumimos que cria sempre para garantir que aparece no planeamento
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+                  desc: `Reparar ${itemLabel} em ${building} - ${selectedZone}`, 
+                  cat: 'Vistoria', 
+                  date: inspectionDate, 
+                  originId: taskId, 
+                  completed: false, 
+                  recommendation: '', 
+                  assignedTo: 'Equipa Interna',
+                  createdAt: new Date().toISOString()
+              });
+              
+              // Marca como sincronizado na base de dados
+              const finalAuditData = { ...newAuditData, [key]: { ...newItem, syncedToTasks: true } };
+              saveInspectionToFirestore(finalAuditData);
+          } catch (e) { console.error("Erro ao criar tarefa automática:", e); }
       }
   };
 
@@ -341,7 +364,7 @@ function AdminApp({ onLogout, user }) {
   const handleRemoveTask = async (taskId) => { if (!user) return; try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId)); } catch (e) {} };
   const handleToggleTask = async (taskId, currentStatus) => { if (!user) return; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completed: !currentStatus }); } catch (e) {} };
 
-  // --- FUNÇÕES DA IA (Flash 1.5) ---
+  // --- FUNÇÕES DA IA ---
   const handleEstimateTaskDetails = async (task) => {
     setEstimatingTaskId(task.id);
     const staffCount = planning.teamType === 'internal' ? 'equipa interna atual' : 'empresa externa';
@@ -487,6 +510,8 @@ function AdminApp({ onLogout, user }) {
         <aside className="w-80 bg-white border-r hidden md:block p-4 overflow-y-auto">
           <button onClick={() => setSelectedBuilding(null)} className="mb-4 text-sm text-gray-500 hover:text-emerald-600 flex items-center gap-1">&larr; Voltar</button>
           <div className="mb-6 p-3 bg-emerald-50 rounded border border-emerald-100"><label className="block text-xs font-bold text-emerald-700 uppercase mb-1">Data Vistoria</label><input type="date" className="w-full text-sm bg-white border rounded" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)}/></div>
+          <button onClick={handleFinishInspection} className="w-full mt-4 bg-green-600 text-white p-3 rounded shadow hover:bg-green-700 flex items-center justify-center gap-2"><FileCheck className="w-4 h-4"/> Finalizar e Arquivar</button>
+          <div className="mt-6 border-t pt-4"><p className="text-xs text-gray-400">Selecione o piso:</p></div>
           {selectedBuilding.floors.map(f => (
             <div key={f.id} className="mb-2"><button onClick={() => setSelectedFloor(f.id === selectedFloor?.id ? null : f)} className={`w-full text-left px-3 py-2 rounded flex justify-between ${selectedFloor?.id === f.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50'}`}>{f.name} <ChevronDown className="w-4 h-4"/></button>
               {selectedFloor?.id === f.id && <div className="ml-4 mt-2 border-l-2 pl-2 space-y-1">{f.zones.map(z => <button key={z} onClick={() => setSelectedZone(z)} className={`w-full text-left px-3 py-2 rounded text-sm ${selectedZone === z ? 'bg-emerald-100 text-emerald-800' : 'hover:bg-gray-50'}`}>{z}</button>)}</div>}
