@@ -9,7 +9,7 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, // <--- ÍCONE QUE FALTAVA (CORRIGIDO)
+  RefreshCw, // <--- ESTE ERA O ÍCONE QUE FALTAVA E BLOQUEAVA TUDO
   FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList
 } from 'lucide-react';
 
@@ -21,12 +21,13 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-// --- CONFIGURAÇÃO MANUAL DO FIREBASE (CORRIGIDA COM O SEU ID REAL) ---
+// --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
+// Os dados foram retirados das suas imagens (Imagem 1 e 3)
 const firebaseConfig = {
   apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
-  authDomain: "manutencaoappcsm.firebaseapp.com", // <--- CORRIGIDO
-  projectId: "manutencaoappcsm", // <--- ID REAL RETIRADO DA SUA IMAGEM
-  storageBucket: "manutencaoappcsm.appspot.com" // <--- CORRIGIDO
+  authDomain: "manutencaoappcsm.firebaseapp.com",
+  projectId: "manutencaoappcsm",
+  storageBucket: "manutencaoappcsm.appspot.com"
 };
 
 // Inicialização Segura
@@ -108,7 +109,7 @@ function App() {
             .then(() => setDbError(null))
             .catch(e => {
                 console.error("Erro Auth:", e);
-                setDbError("Erro de Autenticação. Ative o modo 'Anônimo' no Firebase Authentication.");
+                setDbError("Erro de Autenticação. Tente recarregar a página.");
             });
         onAuthStateChanged(auth, setUser);
     }
@@ -230,7 +231,7 @@ function AdminApp({ onLogout, user, setDbError }) {
         setDbError(null);
     }, (err) => {
         console.error("Erro Tasks:", err);
-        setDbError("Erro ao ler tarefas. Verifique se a autenticação Anónima está ativa no Firebase.");
+        setDbError("Erro ao ler tarefas.");
     });
 
     // Ler Vistorias
@@ -258,7 +259,7 @@ function AdminApp({ onLogout, user, setDbError }) {
               createdAt: new Date().toISOString()
           });
       } catch (e) {
-          alert("Erro ao criar tarefa. Verifique a ligação.");
+          alert("Erro ao criar tarefa.");
           console.error(e);
       }
   };
