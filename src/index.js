@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ClipboardCheck, Building2, MapPin, CheckCircle2, XCircle, Save, 
@@ -6,7 +7,8 @@ import {
   Flag, Calendar, Users, FileText, Camera, Printer, Trash2, TreePine, 
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
-  User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact
+  User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
+  RefreshCw // <--- ADICIONEI ESTE ÍCONE QUE FALTAVA
 } from 'lucide-react';
 
 // FIREBASE IMPORTS
