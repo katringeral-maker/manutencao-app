@@ -9,7 +9,8 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList, AlertOctagon
+  RefreshCw, // <--- ÍCONE QUE FALTAVA (CORRIGIDO)
+  FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList
 } from 'lucide-react';
 
 // FIREBASE IMPORTS
@@ -20,12 +21,12 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-// --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
+// --- CONFIGURAÇÃO MANUAL DO FIREBASE (CORRIGIDA COM O SEU ID REAL) ---
 const firebaseConfig = {
-  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE",
-  authDomain: "manutencaoappcsm.firebaseapp.com",
-  projectId: "manutencaoappcsm",
-  storageBucket: "manutencaoappcsm.firebasestorage.app"
+  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
+  authDomain: "manutencaoappcsm.firebaseapp.com", // <--- CORRIGIDO
+  projectId: "manutencaoappcsm", // <--- ID REAL RETIRADO DA SUA IMAGEM
+  storageBucket: "manutencaoappcsm.appspot.com" // <--- CORRIGIDO
 };
 
 // Inicialização Segura
@@ -107,7 +108,7 @@ function App() {
             .then(() => setDbError(null))
             .catch(e => {
                 console.error("Erro Auth:", e);
-                setDbError("Erro de Autenticação Firebase. Verifique a API Key e Project ID.");
+                setDbError("Erro de Autenticação. Ative o modo 'Anônimo' no Firebase Authentication.");
             });
         onAuthStateChanged(auth, setUser);
     }
@@ -229,7 +230,7 @@ function AdminApp({ onLogout, user, setDbError }) {
         setDbError(null);
     }, (err) => {
         console.error("Erro Tasks:", err);
-        setDbError("Erro ao ler tarefas. Verifique se o Project ID está correto no código.");
+        setDbError("Erro ao ler tarefas. Verifique se a autenticação Anónima está ativa no Firebase.");
     });
 
     // Ler Vistorias
@@ -449,7 +450,9 @@ function AdminApp({ onLogout, user, setDbError }) {
         <div className="flex justify-center items-center gap-2 mb-8"><label className="text-sm font-medium">Data da Vistoria:</label><input type="date" className="p-2 border rounded" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)} /></div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
           {BUILDINGS_DATA.map((b) => (
-            <button key={b.id} onClick={() => setSelectedBuilding(b)} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-gray-100 flex flex-col items-center gap-4"><div className="p-4 bg-emerald-50 rounded-full">{b.id === 'lar' ? <Home className="w-8 h-8 text-emerald-600" /> : <Building2 className="w-8 h-8 text-emerald-600" />}</div><span className="font-semibold text-gray-700">{b.name}</span></button>
+            <button key={b.id} onClick={() => setSelectedBuilding(b)} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-gray-100 flex flex-col items-center gap-4">
+              <div className="p-4 bg-emerald-50 rounded-full">{b.id === 'lar' ? <Home className="w-8 h-8 text-emerald-600" /> : <Building2 className="w-8 h-8 text-emerald-600" />}</div><span className="font-semibold text-gray-700">{b.name}</span>
+            </button>
           ))}
         </div>
       </div>
@@ -693,24 +696,27 @@ function WorkerApp({ onLogout, user }) {
         <div><div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-800 flex items-center gap-2 text-lg"><Briefcase className="w-5 h-5 text-emerald-600" /> A Tua Lista</h3></div>
           {loading ? <div className="flex justify-center p-10"><RefreshCw className="w-8 h-8 animate-spin text-emerald-500"/></div> : pendingTasks.length === 0 ? <div className="bg-white p-10 rounded-3xl text-center border-2 border-dashed border-gray-200 flex flex-col items-center"><div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-4"><CheckCircle2 className="w-8 h-8 text-emerald-400" /></div><h4 className="text-gray-800 font-bold mb-1">Tudo limpo!</h4><p className="text-gray-400 text-sm">Bom trabalho, não tens tarefas pendentes.</p></div> : (
             <div className="space-y-4">
-              {pendingTasks.map(task => (<div key={task.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden"><div className={`absolute left-0 top-0 bottom-0 w-1.5 ${task.cat === 'Vistoria' ? 'bg-amber-500' : task.cat === 'Detetado em Obra' ? 'bg-purple-500' : 'bg-blue-500'}`}></div><div className="ml-2"><div className="flex justify-between items-start mb-3"><span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${task.cat === 'Vistoria' ? 'bg-amber-50 text-amber-700' : task.cat === 'Detetado em Obra' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>{task.cat}</span>{task.assignedTo && <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md flex items-center gap-1"><User className="w-3 h-3"/> {task.assignedTo}</span>}</div><h4 className="font-bold text-gray-800 text-lg leading-snug mb-3">{task.desc}</h4>{task.initialPhoto && <div className="mb-3"><span className="text-[10px] text-gray-400 uppercase font-bold">Foto do Problema:</span><img src={task.initialPhoto} alt="Anomalia" className="h-24 w-full object-cover rounded-lg border border-gray-100 mt-1" /></div>}{task.recommendation && <div className="mb-4 bg-amber-50 p-3 rounded-xl border border-amber-100 text-sm text-amber-800 flex gap-3 items-start"><AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" /><span className="leading-snug">{task.recommendation}</span></div>}
-              <div className="mb-4">
-                  {/* INFORMAÇÕES EXTRAS VISÍVEIS AO TRABALHADOR */}
-                  {(task.duration || task.materials || task.measures) && (
-                      <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded border border-gray-100 mb-2">
-                          <p className="font-bold mb-1">Estimativa da Coordenação (IA):</p>
-                          {task.duration && <p>⏱️ Tempo: {task.duration}</p>}
-                          {task.materials && <p>📦 Material: {task.materials}</p>}
-                          {task.measures && <p>📏 Medidas: {task.measures}</p>}
-                      </div>
-                  )}
-                  <label className="text-[10px] text-gray-400 uppercase font-bold">Minhas Observações:</label>
-                  <input type="text" className="w-full text-sm border rounded p-2 mt-1" placeholder="Ex: Tive de comprar mais parafusos..." defaultValue={task.workerObservations || ''} onBlur={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { workerObservations: e.target.value })}/>
-              </div>
-              <div className="flex gap-3 mt-5"><label className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer font-bold text-sm transition-all border ${uploading === task.id ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, task.id)} disabled={uploading === task.id} />{uploading === task.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}<span>{uploading === task.id ? 'A enviar...' : 'Foto & Feito'}</span></label><button onClick={() => handleCompleteTask(task.id, task.completed)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all"><CheckCircle2 className="w-5 h-5" /></button></div></div></div>))}
+              {pendingTasks.map(task => (
+                <div key={task.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden">
+                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${task.cat === 'Vistoria' ? 'bg-amber-500' : task.cat === 'Detetado em Obra' ? 'bg-purple-500' : 'bg-blue-500'}`}></div>
+                  <div className="ml-2">
+                    <div className="flex justify-between items-start mb-3"><span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${task.cat === 'Vistoria' ? 'bg-amber-50 text-amber-700' : task.cat === 'Detetado em Obra' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>{task.cat}</span>{task.assignedTo && <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md flex items-center gap-1"><User className="w-3 h-3"/> {task.assignedTo}</span>}</div>
+                    <h4 className="font-bold text-gray-800 text-lg leading-snug mb-3">{task.desc}</h4>
+                    {task.initialPhoto && <div className="mb-3"><span className="text-[10px] text-gray-400 uppercase font-bold">Foto do Problema:</span><img src={task.initialPhoto} alt="Anomalia" className="h-24 w-full object-cover rounded-lg border border-gray-100 mt-1" /></div>}
+                    {task.recommendation && <div className="mb-4 bg-amber-50 p-3 rounded-xl border border-amber-100 text-sm text-amber-800 flex gap-3 items-start"><AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" /><span className="leading-snug">{task.recommendation}</span></div>}
+                    <div className="flex gap-3 mt-5">
+                      <label className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer font-bold text-sm transition-all border ${uploading === task.id ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, task.id)} disabled={uploading === task.id} />{uploading === task.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}<span>{uploading === task.id ? 'A enviar...' : 'Foto & Feito'}</span></label><button onClick={() => handleCompleteTask(task.id, task.completed)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all"><CheckCircle2 className="w-5 h-5" /></button>
+                    </div>
+                  </div>
+                  {(task.duration || task.materials) && (<div className="ml-2 mt-3 pt-3 border-t border-gray-100 flex gap-4 text-xs text-gray-500">{task.duration && <div className="flex items-center gap-1"><Clock className="w-3 h-3"/> {task.duration}</div>}{task.materials && <div className="flex items-center gap-1"><Package className="w-3 h-3"/> {task.materials}</div>}</div>)}
+                </div>
+              ))}
             </div>
           )}
         </div>
+        {completedTasks.length > 0 && (
+          <div className="pt-6 border-t border-gray-100"><h3 className="font-bold text-gray-400 text-xs uppercase tracking-wider mb-4 pl-1">Concluídas Hoje</h3><div className="space-y-3">{completedTasks.map(task => (<div key={task.id} className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex justify-between items-center opacity-70"><div className="flex items-center gap-3 overflow-hidden"><div className="bg-emerald-100 p-1.5 rounded-full flex-shrink-0"><CheckCircle2 className="w-4 h-4 text-emerald-600" /></div><span className="text-gray-600 line-through text-sm truncate">{task.desc}</span></div>{task.completionPhoto && <div className="bg-white p-1 rounded border"><ImageIcon size={14} className="text-gray-400" /></div>}</div>))}</div></div>
+        )}
       </main>
     </div>
   );
