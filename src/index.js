@@ -9,8 +9,8 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, 
-  FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList
+  RefreshCw, // <--- ESTE ERA O ÍCONE QUE FALTAVA E BLOQUEAVA A ATUALIZAÇÃO
+  FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList, HardHat
 } from 'lucide-react';
 
 // FIREBASE IMPORTS
@@ -22,11 +22,14 @@ import {
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 // --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
+// Corrigido com base na sua Imagem 3 (manutencaoappcsm)
 const firebaseConfig = {
-  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
-  authDomain: "manutencaoappcsm.firebaseapp.com",
-  projectId: "manutencaoappcsm",
-  storageBucket: "manutencaoappcsm.appspot.com"
+  apiKey: "AIzaSyAo6MPtHy6b-n0rKvZtuy_TCJPG8qye7oU", 
+  authDomain: "manutencaoappcsm.firebaseapp.com", 
+  projectId: "manutencaoappcsm", 
+  storageBucket: "manutencaoappcsm.firebasestorage.app",
+  messagingSenderId: "109430393454",
+  appId: "1:109430393454:web:f2a56b08e2ff9ad755f47f"
 };
 
 // Inicialização Segura
@@ -637,6 +640,7 @@ function WorkerApp({ onLogout, user }) {
   const [selectedWorker, setSelectedWorker] = useState(localStorage.getItem('workerName') || '');
   const [inputName, setInputName] = useState(''); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [uploading, setUploading] = useState(null); const [newTaskDesc, setNewTaskDesc] = useState(''); const [newTaskPhoto, setNewTaskPhoto] = useState(null); const [isReporting, setIsReporting] = useState(false); const [isImporting, setIsImporting] = useState(false);
   const [showWorksheet, setShowWorksheet] = useState(false); // NOVO STATE PARA FOLHA DE OBRA
+  const [updatingTaskId, setUpdatingTaskId] = useState(null); // NOVO STATE PARA "EM CURSO"
 
   useEffect(() => {
     if (!user) return;
@@ -707,6 +711,51 @@ function WorkerApp({ onLogout, user }) {
                     <h4 className="font-bold text-gray-800 text-lg leading-snug mb-3">{task.desc}</h4>
                     {task.initialPhoto && <div className="mb-3"><span className="text-[10px] text-gray-400 uppercase font-bold">Foto do Problema:</span><img src={task.initialPhoto} alt="Anomalia" className="h-24 w-full object-cover rounded-lg border border-gray-100 mt-1" /></div>}
                     {task.recommendation && <div className="mb-4 bg-amber-50 p-3 rounded-xl border border-amber-100 text-sm text-amber-800 flex gap-3 items-start"><AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" /><span className="leading-snug">{task.recommendation}</span></div>}
+                    
+                    {/* BOTÃO "EM CURSO" E CAIXA DE ATUALIZAÇÃO */}
+                    <div className="mt-3">
+                        {updatingTaskId === task.id ? (
+                            <div className="animate-in fade-in zoom-in duration-200">
+                                <label className="text-xs font-bold text-orange-600 block mb-1">Atualização de Progresso:</label>
+                                <div className="flex flex-col gap-2">
+                                    <textarea 
+                                        className="w-full text-sm border-2 border-orange-100 rounded p-2 h-20 resize-none focus:outline-none focus:border-orange-300" 
+                                        placeholder="O que foi feito hoje? O que falta?"
+                                        id={`update-${task.id}`}
+                                    />
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => {
+                                                const val = document.getElementById(`update-${task.id}`).value;
+                                                if(!val.trim()) return;
+                                                const timestamp = new Date().toLocaleDateString('pt-PT');
+                                                const newNote = `[EM CURSO ${timestamp}]: ${val}`;
+                                                const currentObs = task.workerObservations || "";
+                                                updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { 
+                                                    workerObservations: currentObs ? currentObs + "\n" + newNote : newNote 
+                                                });
+                                                setUpdatingTaskId(null);
+                                                alert("Progresso registado!");
+                                            }}
+                                            className="flex-1 bg-orange-500 text-white p-2 rounded font-bold text-xs hover:bg-orange-600"
+                                        >
+                                            Gravar Atualização
+                                        </button>
+                                        <button onClick={() => setUpdatingTaskId(null)} className="px-3 py-2 bg-gray-100 text-gray-500 rounded text-xs font-bold">Cancelar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <button 
+                                onClick={() => setUpdatingTaskId(task.id)}
+                                className="w-full py-2 bg-orange-50 text-orange-600 border border-orange-100 rounded flex items-center justify-center gap-2 hover:bg-orange-100 transition-colors"
+                            >
+                                <HardHat className="w-4 h-4"/>
+                                <span className="text-xs font-bold">Em Curso / Adicionar Nota</span>
+                            </button>
+                        )}
+                    </div>
+
                     <div className="flex gap-3 mt-5">
                       <label className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer font-bold text-sm transition-all border ${uploading === task.id ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, task.id)} disabled={uploading === task.id} />{uploading === task.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}<span>{uploading === task.id ? 'A enviar...' : 'Foto & Feito'}</span></label><button onClick={() => handleCompleteTask(task.id, task.completed)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all"><CheckCircle2 className="w-5 h-5" /></button>
                     </div>
