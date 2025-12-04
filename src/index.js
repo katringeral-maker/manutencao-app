@@ -9,22 +9,23 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList
+  RefreshCw, FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList, AlertOctagon
 } from 'lucide-react';
 
 // FIREBASE IMPORTS
 import { initializeApp } from 'firebase/app';
 import { 
   getFirestore, collection, onSnapshot, 
-  addDoc, deleteDoc, updateDoc, doc, query, setDoc, getDoc 
+  addDoc, deleteDoc, updateDoc, doc, query, setDoc, getDoc, orderBy 
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-// --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
+// --- CONFIGURAÇÃO FIREBASE ---
+// ⚠️ VERIFIQUE SE O projectId ESTÁ CORRETO NO SEU CONSOLE FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
   authDomain: "manutencao-app.firebaseapp.com",
-  projectId: "manutencao-app",
+  projectId: "manutencao-app", // <--- SE TIVER O ID REAL, COLOQUE AQUI
   storageBucket: "manutencao-app.appspot.com"
 };
 
@@ -99,19 +100,30 @@ const BUILDINGS_DATA = [
 function App() {
   const [role, setRole] = useState(null); 
   const [user, setUser] = useState(null);
+  const [dbError, setDbError] = useState(null);
 
   useEffect(() => {
     if (auth) {
-        signInAnonymously(auth).catch(e => console.error("Erro Auth:", e));
+        signInAnonymously(auth)
+            .then(() => setDbError(null))
+            .catch(e => {
+                console.error("Erro Auth:", e);
+                setDbError("Erro de Autenticação Firebase. Verifique a API Key e Project ID.");
+            });
         onAuthStateChanged(auth, setUser);
     }
   }, []);
 
-  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">Erro: Configuração do Firebase não encontrada.</div>;
+  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">Erro Crítico: Configuração do Firebase não encontrada.</div>;
 
-  if (!role) return <LoginScreen onSelectRole={setRole} />;
-  if (role === 'admin') return <AdminApp onLogout={() => setRole(null)} user={user} />;
-  if (role === 'worker') return <WorkerApp onLogout={() => setRole(null)} user={user} />;
+  return (
+    <>
+        {dbError && <div className="bg-red-600 text-white p-2 text-center text-xs font-bold fixed top-0 w-full z-[100]">{dbError}</div>}
+        {!role ? <LoginScreen onSelectRole={setRole} /> : 
+         role === 'admin' ? <AdminApp onLogout={() => setRole(null)} user={user} setDbError={setDbError} /> : 
+         <WorkerApp onLogout={() => setRole(null)} user={user} />}
+    </>
+  );
 }
 
 // === ECRÃ DE LOGIN ===
@@ -173,7 +185,7 @@ function LoginScreen({ onSelectRole }) {
 }
 
 // === ADMIN APP ===
-function AdminApp({ onLogout, user }) {
+function AdminApp({ onLogout, user, setDbError }) {
   const [currentView, setCurrentView] = useState('inspection'); 
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [selectedFloor, setSelectedFloor] = useState(null);
@@ -181,9 +193,8 @@ function AdminApp({ onLogout, user }) {
   const [inspectionDate, setInspectionDate] = useState(new Date().toISOString().split('T')[0]); 
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]); 
   const [reportType, setReportType] = useState('weekly'); 
-  const [auditData, setAuditData] = useState({}); // DADOS DA VISTORIA
+  const [auditData, setAuditData] = useState({}); 
   
-  // States Auxiliares
   const [analyzingItem, setAnalyzingItem] = useState(null); 
   const [reportSummary, setReportSummary] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
@@ -207,60 +218,68 @@ function AdminApp({ onLogout, user }) {
   const isDrawing = useRef(false);
   const chatEndRef = useRef(null);
 
-  // --- CARREGAMENTO DE DADOS (PERSISTÊNCIA) ---
+  // --- CARREGAMENTO DE DADOS ---
   useEffect(() => {
     if (!user) return;
     
-    // 1. LER TAREFAS DO PLANEAMENTO
-    const tasksQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'));
+    // Ler Tarefas com Ordem
+    const tasksQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('date', 'desc'));
     const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
         const tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        tasks.sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? 1 : -1);
         setPlanningTasks(tasks);
-    }, (err) => console.error("Erro a ler tarefas:", err));
-
-    // 2. LER VISTORIAS DO FIREBASE (PARA NÃO DESAPARECER)
-    const inspectionRef = doc(db, 'artifacts', appId, 'public', 'data', 'inspection', 'current');
-    const unsubscribeInspection = onSnapshot(inspectionRef, (docSnap) => {
-        if (docSnap.exists()) {
-            setAuditData(docSnap.data().data || {});
-        }
+        setDbError(null);
+    }, (err) => {
+        console.error("Erro Tasks:", err);
+        setDbError("Erro ao ler tarefas. Verifique se o Project ID está correto no código.");
     });
 
-    // 3. LER DEFINIÇÕES
+    // Ler Vistorias
+    const inspectionRef = doc(db, 'artifacts', appId, 'public', 'data', 'inspection', 'current');
+    const unsubscribeInspection = onSnapshot(inspectionRef, (docSnap) => {
+        if (docSnap.exists()) setAuditData(docSnap.data().data || {});
+    });
+
+    // Ler Settings
     const metaRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'planning');
     const unsubscribeMeta = onSnapshot(metaRef, (docSnap) => {
         if (docSnap.exists()) setPlanning(docSnap.data());
-    }, (err) => console.error("Erro a ler settings:", err));
+    });
 
     return () => { unsubscribeTasks(); unsubscribeMeta(); unsubscribeInspection(); };
   }, [user]);
 
-  // --- FUNÇÃO PARA SALVAR VISTORIA NO FIREBASE (AUTO-SAVE) ---
-  const saveInspectionToFirestore = async (newData) => {
-      setAuditData(newData); // Atualiza localmente
-      if(user) {
-          try {
-              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'inspection', 'current'), { data: newData }, { merge: true });
-          } catch(e) { console.error("Erro ao salvar vistoria:", e); }
+  // Função Auxiliar para criar tarefa
+  const createPlanningTask = async (taskData) => {
+      try {
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
+              ...taskData,
+              assignedTo: 'Equipa Interna',
+              completed: false,
+              createdAt: new Date().toISOString()
+          });
+      } catch (e) {
+          alert("Erro ao criar tarefa. Verifique a ligação.");
+          console.error(e);
       }
   };
 
-  // --- ARQUIVAR VISTORIA (NOVO) ---
+  const saveInspectionToFirestore = async (newData) => {
+      setAuditData(newData); 
+      if(user) {
+          try {
+              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'inspection', 'current'), { data: newData }, { merge: true });
+          } catch(e) { console.error("Erro save vistoria:", e); }
+      }
+  };
+
   const handleFinishInspection = async () => {
-      if(!window.confirm("Pretende terminar a vistoria e arquivar o relatório? Isto limpará a vistoria atual.")) return;
+      if(!window.confirm("Pretende terminar a vistoria e arquivar?")) return;
       const reportId = new Date().toISOString().split('T')[0];
       try {
-          // Salva histórico
-          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'inspection_reports', reportId), {
-              date: inspectionDate,
-              data: auditData,
-              closedAt: new Date().toISOString()
-          });
-          // Limpa atual
+          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'inspection_reports', reportId), { date: inspectionDate, data: auditData, closedAt: new Date().toISOString() });
           await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'inspection', 'current'), { data: {} });
           setAuditData({});
-          alert("Vistoria arquivada com sucesso!");
+          alert("Vistoria arquivada!");
       } catch(e) { alert("Erro ao arquivar."); }
   };
 
@@ -268,7 +287,6 @@ function AdminApp({ onLogout, user }) {
 
   const getAuditKey = (bid, zone, iid) => `${bid}-${zone}-${iid}`;
 
-  // --- FUNÇÕES DE VISTORIA (PERSISTÊNCIA + TAREFA AUTOMÁTICA) ---
   const handleCheck = async (itemId, status) => { 
       if (!selectedBuilding || !selectedZone) return;
       const key = getAuditKey(selectedBuilding.id, selectedZone, itemId);
@@ -283,44 +301,22 @@ function AdminApp({ onLogout, user }) {
       const newAuditData = { ...auditData, [key]: newItem };
       saveInspectionToFirestore(newAuditData);
 
-      // --- CRIAÇÃO AUTOMÁTICA DE TAREFA SE FOR ERRO (NOK) ---
+      // --- CRIAÇÃO IMEDIATA DE TAREFA ---
       if (status === 'nok') {
-          const building = selectedBuilding.name;
           const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
-          const taskId = `auto_${key}_${new Date().toISOString().split('T')[0]}`; 
-
-          try {
-              // Verifica se já existe uma tarefa hoje para este erro (Simplificado: tenta criar sempre)
-              // Usamos setDoc com merge para não duplicar se já existir com o mesmo ID
-              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { 
-                  desc: `Reparar ${itemLabel} em ${building} - ${selectedZone}`, 
-                  cat: 'Vistoria', 
-                  date: inspectionDate, 
-                  originId: taskId, 
-                  completed: false, 
-                  recommendation: '', 
-                  assignedTo: 'Equipa Interna',
-                  createdAt: new Date().toISOString()
-              }, { merge: true });
-              
-              // Marca como sincronizado na base de dados
-              const finalAuditData = { ...newAuditData, [key]: { ...newItem, syncedToTasks: true } };
-              saveInspectionToFirestore(finalAuditData);
-          } catch (e) { console.error("Erro ao criar tarefa automática:", e); }
+          createPlanningTask({
+              desc: `Reparar ${itemLabel} em ${selectedBuilding.name} - ${selectedZone}`,
+              cat: 'Vistoria',
+              date: inspectionDate,
+              originId: `auto_${key}_${Date.now()}` // ID único garantido
+          });
       }
   };
 
   const handleDetailChange = (itemId, field, value) => {
       if (!selectedBuilding || !selectedZone) return;
       const key = getAuditKey(selectedBuilding.id, selectedZone, itemId);
-      
-      const newAuditData = {
-          ...auditData,
-          [key]: {
-              ...auditData[key],
-              details: { ...auditData[key].details, [field]: value }
-          }
-      };
+      const newAuditData = { ...auditData, [key]: { ...auditData[key], details: { ...auditData[key].details, [field]: value } } };
       saveInspectionToFirestore(newAuditData);
   };
 
@@ -337,48 +333,32 @@ function AdminApp({ onLogout, user }) {
       }
   };
 
-  // --- FUNÇÕES DE PLANEAMENTO ---
   const updatePlanningMeta = async (newData) => {
      const updated = { ...planning, ...newData };
      setPlanning(updated); 
      if (user) { try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'planning'), updated); } catch(e) {} }
   };
 
-  const handleCreateNewTask = async () => { 
+  const handleCreateNewTask = () => { 
       if (!newTaskInput.trim()) return; 
-      try {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
-              desc: newTaskInput, 
-              cat: 'Manual', 
-              date: new Date().toISOString().split('T')[0], 
-              assignedTo: 'Equipa Interna',
-              completed: false,
-              createdAt: new Date().toISOString()
-          }); 
-          setNewTaskInput(''); 
-      } catch(e) { alert("Erro ao criar tarefa. Verifique a internet."); }
+      createPlanningTask({ desc: newTaskInput, cat: 'Manual', date: new Date().toISOString().split('T')[0] });
+      setNewTaskInput(''); 
   };
 
   const handleRemoveTask = async (taskId) => { if (!user) return; try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId)); } catch (e) {} };
   const handleToggleTask = async (taskId, currentStatus) => { if (!user) return; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completed: !currentStatus }); } catch (e) {} };
 
-  // --- FUNÇÕES DA IA (Flash 1.5) ---
   const handleEstimateTaskDetails = async (task) => {
     setEstimatingTaskId(task.id);
     const staffCount = planning.teamType === 'internal' ? 'equipa interna atual' : 'empresa externa';
-    const prompt = `És um perito em manutenção. Tarefa: "${task.desc}". Baseado em ${staffCount}, estima: 1. Tempo de execução (ex: "2 horas (2 pax)"). 2. Materiais necessários e quantidades. 3. Medidas aproximadas. Responde APENAS JSON puro: {"duration": "...", "materials": "...", "measures": "..."}`;
-    
+    const prompt = `És um perito em manutenção. Tarefa: "${task.desc}". Baseado em ${staffCount}, estima: 1. Tempo de execução. 2. Materiais. 3. Medidas. Responde JSON: {"duration": "...", "materials": "...", "measures": "..."}`;
     const resultText = await callGeminiText(prompt);
     if (resultText) { 
         try { 
             const cleanJson = resultText.replace(/```json|```/g, '').trim(); 
             const result = JSON.parse(cleanJson); 
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { 
-                duration: result.duration, 
-                materials: result.materials,
-                measures: result.measures 
-            }); 
-        } catch (e) { alert("Erro ao processar resposta da IA. Tente novamente."); } 
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { duration: result.duration, materials: result.materials, measures: result.measures }); 
+        } catch (e) { alert("Erro ao processar IA. Tente novamente."); } 
     }
     setEstimatingTaskId(null);
   };
@@ -388,20 +368,11 @@ function AdminApp({ onLogout, user }) {
     const photoUrl = auditData[key]?.photo;
     if (!photoUrl) { alert("Adicione foto primeiro."); return; }
     const base64Data = photoUrl.split(',')[1];
-
     setAnalyzingItem(itemId);
     const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
     const prompt = `Analisa esta foto de manutenção (${itemLabel} em ${zoneName}). Identifica a Causa provável e Medidas de Reparação. Responde APENAS JSON: {"causes": "...", "measures": "..."}`;
-    
     const resultText = await callGeminiVision(base64Data, prompt);
-    if (resultText) { 
-        try { 
-            const cleanJson = resultText.replace(/```json|```/g, '').trim(); 
-            const result = JSON.parse(cleanJson); 
-            handleDetailChange(itemId, 'causes', result.causes); 
-            handleDetailChange(itemId, 'measures', result.measures); 
-        } catch (e) { console.error(e); } 
-    }
+    if (resultText) { try { const cleanJson = resultText.replace(/```json|```/g, '').trim(); const result = JSON.parse(cleanJson); handleDetailChange(itemId, 'causes', result.causes); handleDetailChange(itemId, 'measures', result.measures); } catch (e) {} }
     setAnalyzingItem(null);
   };
 
@@ -416,35 +387,19 @@ function AdminApp({ onLogout, user }) {
     setIsGettingRecommendation(false);
   };
 
-  // --- RELATÓRIOS E EXPORTAÇÃO ---
   const handleExportToSheets = (tasks) => {
-    const headers = ["Data", "Tarefa", "Categoria", "Estado", "Responsável", "Tempo Execução", "Quem Executou", "Observações"];
-    const csvContent = "data:text/csv;charset=utf-8," + 
-        headers.join(",") + "\n" + 
-        tasks.map(t => [
-            t.date, 
-            `"${(t.desc || "").replace(/"/g, '""')}"`, 
-            t.cat, 
-            t.completed ? "Concluído" : "Pendente", 
-            t.assignedTo,
-            t.completed ? (t.duration || "-") : "-", 
-            t.completedBy || "-",
-            `"${(t.observations || "")} ${(t.workerObservations || "")}"`
-        ].join(",")).join("\n");
+    const headers = ["Data", "Tarefa", "Categoria", "Estado", "Responsável", "Tempo", "Quem Executou", "Observações"];
+    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + tasks.map(t => [t.date, `"${(t.desc||"").replace(/"/g, '""')}"`, t.cat, t.completed ? "Concluído" : "Pendente", t.assignedTo, t.duration||"-", t.completedBy||"-", `"${(t.observations||"")}"`].join(",")).join("\n");
     const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `relatorio_manutencao_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
+    const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `relatorio_${new Date().toISOString().slice(0,10)}.csv`); document.body.appendChild(link); link.click();
   };
 
   const handleGenerateReportEmail = async (nokEntries, completedTasks) => {
     setIsGeneratingText(true); setGeneratedTextType('email');
     const period = getPeriodLabel();
     const nokText = nokEntries.map(e => `- ${e.zone}: ${e.item?.label}`).join('\n');
-    const taskText = completedTasks.map(t => `- ${t.desc} (Feito por: ${t.completedBy || '?'})`).join('\n');
-    const prompt = `Escreve um Email formal para a Administração sobre o Relatório de Manutenção (${period}).\nDestaca que houve ${nokEntries.length} anomalias e ${completedTasks.length} trabalhos concluídos.\nLista de Anomalias:\n${nokText}\nLista de Concluídos:\n${taskText}`;
+    const taskText = completedTasks.map(t => `- ${t.desc}`).join('\n');
+    const prompt = `Email formal para a Administração. Relatório Manutenção (${period}). Destaques: ${nokEntries.length} anomalias, ${completedTasks.length} conclusões.\nLista Anomalias:\n${nokText}\nLista Concluídos:\n${taskText}`;
     const content = await callGeminiText(prompt);
     setGeneratedText(content); setIsGeneratingText(false);
   };
@@ -453,7 +408,7 @@ function AdminApp({ onLogout, user }) {
     setIsGeneratingSummary(true);
     const nokText = nokEntries.map(e => `- ${e.zone}: ${e.item?.label}`).join('\n');
     const taskText = completedTasks.map(t => `- ${t.desc}`).join('\n');
-    const prompt = `Escreve um Resumo Executivo profissional sobre a manutenção. Problemas detetados: ${nokEntries.length}. Resolvidos: ${completedTasks.length}. Dados: \n${nokText}\n${taskText}`;
+    const prompt = `Resumo Executivo manutenção. Problemas: ${nokEntries.length}. Resolvidos: ${completedTasks.length}.\n${nokText}\n${taskText}`;
     const summary = await callGeminiText(prompt);
     if (summary) setReportSummary(summary);
     setIsGeneratingSummary(false);
@@ -463,7 +418,7 @@ function AdminApp({ onLogout, user }) {
     setIsGeneratingText(true); setGeneratedTextType('whatsapp');
     const tasksToSend = planningTasks.filter(t => !t.completed);
     const taskList = tasksToSend.map(t => `👉 ${t.desc} (${t.assignedTo})`).join('\n');
-    const prompt = `Cria mensagem WhatsApp para a equipa com estas tarefas pendentes:\n${taskList}`;
+    const prompt = `Mensagem WhatsApp para equipa com tarefas pendentes:\n${taskList}`;
     const content = await callGeminiText(prompt);
     setGeneratedText(content); setIsGeneratingText(false);
   };
@@ -471,11 +426,11 @@ function AdminApp({ onLogout, user }) {
   const handleChatSubmit = async (e) => {
     e.preventDefault(); if (!chatInput.trim()) return;
     setChatMessages(p => [...p, { role: 'user', text: chatInput }]); setChatInput(""); setIsChatLoading(true);
-    const response = await callGeminiText(`Como especialista em manutenção desportiva, responde: "${chatInput}"`);
-    setChatMessages(p => [...p, { role: 'assistant', text: response || "Erro ao contactar IA." }]); setIsChatLoading(false);
+    const response = await callGeminiText(`Especialista manutenção: "${chatInput}"`);
+    setChatMessages(p => [...p, { role: 'assistant', text: response || "Erro IA." }]); setIsChatLoading(false);
   };
 
-  const handleFileImport = (e) => { const file = e.target.files[0]; if (!file) return; setIsImporting(true); const reader = new FileReader(); reader.readAsText(file, 'ISO-8859-1'); reader.onload = async (event) => { const text = event.target.result; const lines = text.split('\n'); let count = 0; for (let i = 0; i < lines.length; i++) { const line = lines[i].trim(); if (!line) continue; const separator = line.includes(';') ? ';' : ','; const cols = line.split(separator); if (cols.length >= 2) { const desc = cols[1].trim().replace(/^"|"$/g, ''); if (desc) { try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: desc, cat: cols[2]?.trim() || 'Importado', date: cols[0].trim() || new Date().toISOString().split('T')[0], assignedTo: 'Equipa Interna', completed: false, createdAt: new Date().toISOString() }); count++; } catch (err) {} } } } setIsImporting(false); alert(`${count} tarefas importadas!`); }; };
+  const handleFileImport = (e) => { const file = e.target.files[0]; if (!file) return; setIsImporting(true); const reader = new FileReader(); reader.readAsText(file, 'ISO-8859-1'); reader.onload = async (event) => { const text = event.target.result; const lines = text.split('\n'); let count = 0; for (let i = 0; i < lines.length; i++) { const line = lines[i].trim(); if (!line) continue; const separator = line.includes(';') ? ';' : ','; const cols = line.split(separator); if (cols.length >= 2) { const desc = cols[1].trim().replace(/^"|"$/g, ''); if (desc) { createPlanningTask({ desc: desc, cat: cols[2]?.trim() || 'Importado', date: cols[0].trim() || new Date().toISOString().split('T')[0] }); count++; } } } setIsImporting(false); alert(`${count} tarefas importadas!`); }; reader.readAsText(f); };
 
   const getWeekRange = (dateString) => { const d = new Date(dateString); const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1); const m = new Date(d); m.setDate(diff); const s = new Date(m); s.setDate(m.getDate() + 6); return `${m.toLocaleDateString('pt-PT')} a ${s.toLocaleDateString('pt-PT')}`; };
   const getPeriodLabel = () => { const d = new Date(reportDate); if (reportType === 'daily') return d.toLocaleDateString('pt-PT'); if (reportType === 'weekly') return getWeekRange(reportDate); if (reportType === 'monthly') return d.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }); return `Ano ${d.getFullYear()}`; };
@@ -488,7 +443,6 @@ function AdminApp({ onLogout, user }) {
   const saveSignature = () => { if (signingRole) setSignatures(p => ({...p, [signingRole]: canvasRef.current.toDataURL()})); setSigningRole(null); };
   const handlePrint = () => window.print();
 
-  // --- RENDERERS ---
   const renderInspection = () => {
     if (!selectedBuilding) return (
       <div className="p-6 text-center">
@@ -496,9 +450,7 @@ function AdminApp({ onLogout, user }) {
         <div className="flex justify-center items-center gap-2 mb-8"><label className="text-sm font-medium">Data da Vistoria:</label><input type="date" className="p-2 border rounded" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)} /></div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
           {BUILDINGS_DATA.map((b) => (
-            <button key={b.id} onClick={() => setSelectedBuilding(b)} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-gray-100 flex flex-col items-center gap-4">
-              <div className="p-4 bg-emerald-50 rounded-full">{b.id === 'lar' ? <Home className="w-8 h-8 text-emerald-600" /> : <Building2 className="w-8 h-8 text-emerald-600" />}</div><span className="font-semibold text-gray-700">{b.name}</span>
-            </button>
+            <button key={b.id} onClick={() => setSelectedBuilding(b)} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md border border-gray-100 flex flex-col items-center gap-4"><div className="p-4 bg-emerald-50 rounded-full">{b.id === 'lar' ? <Home className="w-8 h-8 text-emerald-600" /> : <Building2 className="w-8 h-8 text-emerald-600" />}</div><span className="font-semibold text-gray-700">{b.name}</span></button>
           ))}
         </div>
       </div>
@@ -511,9 +463,7 @@ function AdminApp({ onLogout, user }) {
           <button onClick={handleFinishInspection} className="w-full mt-4 bg-green-600 text-white p-3 rounded shadow hover:bg-green-700 flex items-center justify-center gap-2"><FileCheck className="w-4 h-4"/> Finalizar e Arquivar</button>
           <div className="mt-6 border-t pt-4"><p className="text-xs text-gray-400">Selecione o piso:</p></div>
           {selectedBuilding.floors.map(f => (
-            <div key={f.id} className="mb-2"><button onClick={() => setSelectedFloor(f.id === selectedFloor?.id ? null : f)} className={`w-full text-left px-3 py-2 rounded flex justify-between ${selectedFloor?.id === f.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50'}`}>{f.name} <ChevronDown className="w-4 h-4"/></button>
-              {selectedFloor?.id === f.id && <div className="ml-4 mt-2 border-l-2 pl-2 space-y-1">{f.zones.map(z => <button key={z} onClick={() => setSelectedZone(z)} className={`w-full text-left px-3 py-2 rounded text-sm ${selectedZone === z ? 'bg-emerald-100 text-emerald-800' : 'hover:bg-gray-50'}`}>{z}</button>)}</div>}
-            </div>
+            <div key={f.id} className="mb-2"><button onClick={() => setSelectedFloor(f.id === selectedFloor?.id ? null : f)} className={`w-full text-left px-3 py-2 rounded flex justify-between ${selectedFloor?.id === f.id ? 'bg-emerald-50 text-emerald-700 font-medium' : 'hover:bg-gray-50'}`}>{f.name} <ChevronDown className="w-4 h-4"/></button>{selectedFloor?.id === f.id && <div className="ml-4 mt-2 border-l-2 pl-2 space-y-1">{f.zones.map(z => <button key={z} onClick={() => setSelectedZone(z)} className={`w-full text-left px-3 py-2 rounded text-sm ${selectedZone === z ? 'bg-emerald-100 text-emerald-800' : 'hover:bg-gray-50'}`}>{z}</button>)}</div>}</div>
           ))}
         </aside>
         <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-8">
