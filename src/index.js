@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useState, useRef, useEffect } from 'react';
-import { createRoot } from 'react-dom/client'; // Importação para ligar o ecrã
+import { createRoot } from 'react-dom/client';
 import { 
   ClipboardCheck, Building2, MapPin, CheckCircle2, XCircle, Save, 
   LayoutDashboard, ChevronRight, ChevronDown, Droplets, Lightbulb, 
@@ -9,7 +9,7 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw // <--- Ícone adicionado
+  RefreshCw, FileSpreadsheet, Edit3, Eye
 } from 'lucide-react';
 
 // FIREBASE IMPORTS
@@ -20,12 +20,12 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 
-// --- CONFIGURAÇÃO MANUAL DO FIREBASE (Para corrigir a Tela Branca) ---
+// --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
 const firebaseConfig = {
-  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", // Sua chave
-  authDomain: "manutencao-app.firebaseapp.com", 
-  projectId: "manutencao-app",
-  storageBucket: "manutencao-app.appspot.com"
+  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE",
+  authDomain: "manutencao-csm.firebaseapp.com", // Domínio genérico para evitar crash
+  projectId: "manutencao-csm",
+  storageBucket: "manutencao-csm.appspot.com"
 };
 
 // Inicialização Segura
@@ -107,7 +107,7 @@ function App() {
     }
   }, []);
 
-  if (!auth) return <div className="p-10 text-center text-red-600">Erro: Firebase não configurado.</div>;
+  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">Erro: Configuração do Firebase não encontrada.</div>;
 
   if (!role) return <LoginScreen onSelectRole={setRole} />;
   if (role === 'admin') return <AdminApp onLogout={() => setRole(null)} user={user} />;
@@ -235,6 +235,7 @@ function AdminApp({ onLogout, user }) {
   const handleRemoveTask = async (taskId) => { if (!user) return; try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId)); } catch (e) {} };
   const handleToggleTask = async (taskId, currentStatus) => { if (!user) return; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completed: !currentStatus }); } catch (e) {} };
 
+  // --- SINCRONIZAÇÃO VISTORIA -> PLANEAMENTO ---
   useEffect(() => {
     if (!user) return;
     Object.entries(auditData).forEach(async ([key, value]) => {
@@ -244,13 +245,70 @@ function AdminApp({ onLogout, user }) {
         const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
         const taskId = `auto_${key}`;
         if (!planningTasks.find(t => t.id === taskId || t.originId === taskId)) {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: `Reparar ${itemLabel} em ${building} - ${zoneName}`, cat: 'Vistoria', date: inspectionDate, originId: taskId, completed: false, recommendation: value.details?.measures || '', assignedTo: 'Equipa Interna' });
+            // Cria tarefa com recomendação, causas e medidas
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+                desc: `Reparar ${itemLabel} em ${building} - ${zoneName}`, 
+                cat: 'Vistoria', 
+                date: inspectionDate, 
+                originId: taskId, 
+                completed: false, 
+                recommendation: `${value.details?.causes || ''} - ${value.details?.measures || ''}`, // Medidas da vistoria
+                assignedTo: 'Equipa Interna' 
+            });
             setAuditData(prev => ({ ...prev, [key]: { ...prev[key], syncedToTasks: true } }));
         }
       }
     });
   }, [auditData, user, inspectionDate, planningTasks]);
 
+  // --- FUNÇÕES DA IA (MEDIDAS/MATERIAIS/TEMPO) ---
+  const handleEstimateTaskDetails = async (task) => {
+    setEstimatingTaskId(task.id);
+    const staffCount = planning.teamType === 'internal' ? 'equipa interna atual' : 'empresa externa';
+    const prompt = `És um perito em manutenção. Tarefa: "${task.desc}". Baseado em ${staffCount}, estima: 
+    1. Tempo de execução (ex: "2 horas (2 pax)"). 
+    2. Materiais necessários e quantidades (ex: "5L Tinta Branca, 2 Rolos"). 
+    3. Medidas aproximadas (ex: "20m2"). 
+    Responde APENAS JSON válido: {"duration": "...", "materials": "...", "measures": "..."}`;
+    
+    const resultText = await callGeminiText(prompt);
+    if (resultText) { 
+        try { 
+            const cleanJson = resultText.replace(/```json|```/g, '').trim(); 
+            const result = JSON.parse(cleanJson); 
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { 
+                duration: result.duration, 
+                materials: result.materials,
+                measures: result.measures // Novo campo
+            }); 
+        } catch (e) { console.error("Erro JSON IA", e); } 
+    }
+    setEstimatingTaskId(null);
+  };
+
+  const handleExportToSheets = (tasks) => {
+    const headers = ["Data", "Tarefa", "Categoria", "Estado", "Responsável", "Tempo Execução", "Quem Executou", "Observações"];
+    const csvContent = "data:text/csv;charset=utf-8," + 
+        headers.join(",") + "\n" + 
+        tasks.map(t => [
+            t.date, 
+            `"${t.desc.replace(/"/g, '""')}"`, 
+            t.cat, 
+            t.completed ? "Concluído" : "Pendente", 
+            t.assignedTo,
+            t.completed ? (t.duration || "-") : "-", // Tempo real ou estimado
+            t.completedBy || "-",
+            `"${(t.observations || "")} ${(t.workerObservations || "")}"`
+        ].join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `relatorio_manutencao_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+  };
+
+  // --- OUTRAS FUNÇÕES ---
   const handleAnalyzePhoto = async (itemId, buildingId, zoneName) => {
     const key = getAuditKey(buildingId, zoneName, itemId);
     const photoUrl = auditData[key]?.photo;
@@ -281,18 +339,10 @@ function AdminApp({ onLogout, user }) {
     setIsGettingRecommendation(false);
   };
 
-  const handleEstimateTaskDetails = async (task) => {
-    setEstimatingTaskId(task.id);
-    const prompt = `És um especialista em manutenção. Para a tarefa "${task.desc}", estima a duração média e os materiais/ferramentas necessários. JSON: {"duration": "ex: 2h", "materials": "ex: Tinta"}`;
-    const resultText = await callGeminiText(prompt);
-    if (resultText) { try { const cleanJson = resultText.replace(/```json|```/g, '').trim(); const result = JSON.parse(cleanJson); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { duration: result.duration, materials: result.materials }); } catch (e) {} }
-    setEstimatingTaskId(null);
-  };
-
   const handleGenerateReportSummary = async (nokEntries, completedTasks) => {
     setIsGeneratingSummary(true);
     const nokText = nokEntries.map(e => `- ${e.zone}: ${e.item?.label} (${e.details?.causes})`).join('\n');
-    const taskText = completedTasks.map(t => `- ${t.desc}`).join('\n');
+    const taskText = completedTasks.map(t => `- ${t.desc} (por ${t.completedBy || t.assignedTo})`).join('\n');
     const prompt = `Resumo Executivo para Relatório Manutenção. Anomalias:\n${nokText}\nTrabalhos Feitos:\n${taskText}`;
     const summary = await callGeminiText(prompt);
     if (summary) setReportSummary(summary);
@@ -324,12 +374,33 @@ function AdminApp({ onLogout, user }) {
     setChatMessages(p => [...p, { role: 'assistant', text: response || "Erro." }]); setIsChatLoading(false);
   };
 
+  // Lógica de Datas para Relatórios (Diário, Semanal, Mensal, Anual)
   const getWeekRange = (dateString) => {
     const d = new Date(dateString); const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1); const m = new Date(d); m.setDate(diff); const s = new Date(m); s.setDate(m.getDate() + 6);
     return `${m.toLocaleDateString('pt-PT')} a ${s.toLocaleDateString('pt-PT')}`;
   };
-  const getPeriodLabel = () => { const d = new Date(reportDate); if (reportType === 'weekly') return getWeekRange(reportDate); if (reportType === 'monthly') return d.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }); return `Ano ${d.getFullYear()}`; };
-  const filterByPeriod = (dateStr) => { if (!dateStr) return false; const itemDate = new Date(dateStr); const refDate = new Date(reportDate); if (reportType === 'weekly') { const day = refDate.getDay(); const diff = refDate.getDate() - day + (day === 0 ? -6 : 1); const monday = new Date(refDate); monday.setDate(diff); monday.setHours(0,0,0,0); const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999); return itemDate >= monday && itemDate <= sunday; } else if (reportType === 'monthly') return itemDate.getMonth() === refDate.getMonth() && itemDate.getFullYear() === refDate.getFullYear(); else return itemDate.getFullYear() === refDate.getFullYear(); };
+  const getPeriodLabel = () => { 
+      const d = new Date(reportDate); 
+      if (reportType === 'daily') return d.toLocaleDateString('pt-PT');
+      if (reportType === 'weekly') return getWeekRange(reportDate); 
+      if (reportType === 'monthly') return d.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }); 
+      return `Ano ${d.getFullYear()}`; 
+  };
+  const filterByPeriod = (dateStr) => { 
+      if (!dateStr) return false; 
+      const itemDate = new Date(dateStr); 
+      const refDate = new Date(reportDate); 
+      if (reportType === 'daily') {
+          return itemDate.toDateString() === refDate.toDateString();
+      } else if (reportType === 'weekly') { 
+          const day = refDate.getDay(); 
+          const diff = refDate.getDate() - day + (day === 0 ? -6 : 1); 
+          const monday = new Date(refDate); monday.setDate(diff); monday.setHours(0,0,0,0); 
+          const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999); 
+          return itemDate >= monday && itemDate <= sunday; 
+      } else if (reportType === 'monthly') return itemDate.getMonth() === refDate.getMonth() && itemDate.getFullYear() === refDate.getFullYear(); 
+      else return itemDate.getFullYear() === refDate.getFullYear(); 
+  };
 
   const handleCreateNewTask = () => { if (!newTaskInput.trim()) return; handleAddTaskToFirestore({ desc: newTaskInput, cat: 'Manual', date: new Date().toISOString().split('T')[0], assignedTo: 'Equipa Interna' }); setNewTaskInput(''); };
   const handleFileImport = (e) => { const file = e.target.files[0]; if (!file) return; setIsImporting(true); const reader = new FileReader(); reader.readAsText(file, 'ISO-8859-1'); reader.onload = async (event) => { const text = event.target.result; const lines = text.split('\n'); let count = 0; for (let i = 0; i < lines.length; i++) { const line = lines[i].trim(); if (!line) continue; const separator = line.includes(';') ? ';' : ','; const cols = line.split(separator); if (cols.length >= 2) { const desc = cols[1].trim().replace(/^"|"$/g, ''); if (desc) { try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: desc, cat: cols[2]?.trim() || 'Importado', date: cols[0].trim() || new Date().toISOString().split('T')[0], assignedTo: 'Equipa Interna', completed: false, createdAt: new Date().toISOString() }); count++; } catch (err) {} } } } setIsImporting(false); alert(`${count} tarefas!`); }; };
@@ -428,9 +499,12 @@ function AdminApp({ onLogout, user }) {
                 <div key={t.id} className="p-3 border rounded bg-white hover:bg-gray-50">
                     <div className="flex justify-between items-start"><div className="text-sm flex-1"><span className="px-1 rounded text-xs bg-gray-100">{t.cat}</span><p className="font-medium mt-1">{t.desc}</p><span className="text-xs text-gray-400">{t.date}</span></div><button onClick={() => handleRemoveTask(t.id)} className="text-gray-400 hover:text-red-500"><X className="w-4 h-4"/></button></div>
                     <div className="mt-2 pt-2 border-t flex gap-2"><div className="flex-1"><select className="text-xs border rounded p-1 w-full mb-1" value={t.assignedTo || ''} onChange={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { assignedTo: e.target.value })}><option value="Equipa Interna">Equipa Interna</option><option value="João">João</option><option value="Maria">Maria</option><option value="Carlos">Carlos</option><option value="Empresa Externa">Empresa Externa</option></select></div></div>
-                    <div className="mt-1 grid grid-cols-2 gap-2 relative"><button onClick={() => handleEstimateTaskDetails(t)} disabled={estimatingTaskId === t.id} className="absolute -top-2 right-0 bg-indigo-50 text-indigo-600 p-1 rounded-full hover:bg-indigo-100 shadow-sm">{estimatingTaskId === t.id ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}</button>
-                      <div><label className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> Duração</label><input type="text" className="w-full text-xs border rounded p-1" placeholder="Ex: 2h" defaultValue={t.duration || ''} onBlur={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { duration: e.target.value })}/></div>
-                      <div><label className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-1"><Package className="w-3 h-3"/> Material</label><input type="text" className="w-full text-xs border rounded p-1" placeholder="Ex: Tinta..." defaultValue={t.materials || ''} onBlur={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { materials: e.target.value })}/></div>
+                    {/* Botão AI e Inputs de Edição */}
+                    <div className="mt-1 grid grid-cols-2 gap-2 relative">
+                        <button onClick={() => handleEstimateTaskDetails(t)} disabled={estimatingTaskId === t.id} className="absolute -top-2 right-0 bg-indigo-50 text-indigo-600 p-1 rounded-full hover:bg-indigo-100 shadow-sm" title="IA: Calcular Tempo, Material e Medidas">{estimatingTaskId === t.id ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}</button>
+                        <div><label className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-1"><Clock className="w-3 h-3"/> Duração</label><input type="text" className="w-full text-xs border rounded p-1" placeholder="Ex: 2h" defaultValue={t.duration || ''} onBlur={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { duration: e.target.value })}/></div>
+                        <div><label className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-1"><Package className="w-3 h-3"/> Material</label><input type="text" className="w-full text-xs border rounded p-1" placeholder="Ex: Tinta..." defaultValue={t.materials || ''} onBlur={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { materials: e.target.value })}/></div>
+                        <div className="col-span-2"><label className="text-[10px] text-gray-500 uppercase font-bold flex items-center gap-1"> Observações (Coordenação)</label><textarea className="w-full text-xs border rounded p-1" rows={1} placeholder="Atualizações..." defaultValue={t.observations || ''} onBlur={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { observations: e.target.value })}/></div>
                     </div>
                 </div>
             ))}
@@ -438,8 +512,7 @@ function AdminApp({ onLogout, user }) {
         </div>
         <div className="flex-1 p-6 overflow-y-auto print:hidden flex flex-col gap-6">
           <div className="flex justify-between items-center"><h2 className="text-2xl font-bold">Planeamento & Execução</h2><div className="flex gap-2"><button onClick={handleGenerateWhatsApp} disabled={isGeneratingText} className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 shadow-sm disabled:opacity-50">{isGeneratingText ? <Loader2 className="w-4 h-4 animate-spin"/> : <MessageSquare className="w-4 h-4" />}{isGeneratingText ? '...' : 'Gerar WhatsApp'}</button><button onClick={handlePrint} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 shadow-sm"><Printer className="w-4 h-4"/> Imprimir</button></div></div>
-          {/* ... [Resto do código de planeamento omitido para brevidade, mas está incluído na lógica lógica] ... */}
-          {/* Se quiser a versão completa do quadro de planeamento, é a mesma lógica anterior. Como este código é para colar no index.js, vou incluir a renderização final */}
+          {/* Cabeçalho do Planeamento (Link Drive etc) */}
           <div className="bg-white p-4 rounded shadow-sm border border-gray-200 flex flex-col gap-4">
             <div className="flex gap-4"><div className="flex-1"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Início</label><input type="datetime-local" className="border rounded p-2 w-full" value={planning.startDate || ''} onChange={e => updatePlanningMeta({ startDate: e.target.value })} /></div><div className="flex-1"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fim</label><input type="datetime-local" className="border rounded p-2 w-full" value={planning.endDate || ''} onChange={e => updatePlanningMeta({ endDate: e.target.value })} /></div></div>
             <div className="border-t pt-4">
@@ -463,7 +536,15 @@ function AdminApp({ onLogout, user }) {
              )}
           </div>
           {/* Lista Completa */}
-          <div className="bg-white p-6 rounded shadow space-y-4"><h3 className="font-bold text-gray-700 border-b pb-2 flex items-center gap-2"><ListTodo className="w-5 h-5"/> Lista Completa de Tarefas</h3>{planningTasks.map(t => (<div key={t.id} className={`p-4 border rounded ${t.completed ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-gray-200'}`}><div className="flex justify-between items-start"><div className="flex gap-3"><input type="checkbox" checked={t.completed} onChange={() => handleToggleTask(t.id, t.completed)} className="mt-1 w-5 h-5" /><div><div className={t.completed ? 'line-through text-emerald-700' : 'font-medium'}>{t.desc} <span className="text-gray-400 text-xs font-normal ml-2">({t.date})</span></div><div className="text-sm text-indigo-600 mt-1"><User className="w-3 h-3 inline mr-1"/>{t.assignedTo || 'Por atribuir'}</div>{t.recommendation && <div className="text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded border border-gray-200 flex items-start gap-2"><Info className="w-4 h-4 text-indigo-500 flex-shrink-0" /><span>{t.recommendation}</span></div>}</div></div><button onClick={() => handleRemoveTask(t.id)}><Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500"/></button></div></div>))}</div>
+          <div className="bg-white p-6 rounded shadow space-y-4"><h3 className="font-bold text-gray-700 border-b pb-2 flex items-center gap-2"><ListTodo className="w-5 h-5"/> Lista Completa de Tarefas</h3>{planningTasks.map(t => (<div key={t.id} className={`p-4 border rounded ${t.completed ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-gray-200'}`}><div className="flex justify-between items-start"><div className="flex gap-3"><input type="checkbox" checked={t.completed} onChange={() => handleToggleTask(t.id, t.completed)} className="mt-1 w-5 h-5" /><div><div className={t.completed ? 'line-through text-emerald-700' : 'font-medium'}>{t.desc} <span className="text-gray-400 text-xs font-normal ml-2">({t.date})</span></div><div className="text-sm text-indigo-600 mt-1"><User className="w-3 h-3 inline mr-1"/>{t.assignedTo || 'Por atribuir'}</div>{t.recommendation && <div className="text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded border border-gray-200 flex items-start gap-2"><Info className="w-4 h-4 text-indigo-500 flex-shrink-0" /><span>{t.recommendation}</span></div>}
+          {/* Infos Extras: Tempo/Material/Obs */}
+          <div className="mt-2 text-xs text-gray-500 grid grid-cols-2 gap-2">
+             {t.duration && <div>⏱️ {t.duration}</div>}
+             {t.materials && <div>📦 {t.materials}</div>}
+             {t.observations && <div className="col-span-2 text-blue-600 italic">📝 Coord: {t.observations}</div>}
+             {t.workerObservations && <div className="col-span-2 text-emerald-600 italic">👷 Obra: {t.workerObservations}</div>}
+          </div>
+          </div></div><button onClick={() => handleRemoveTask(t.id)}><Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500"/></button></div></div>))}</div>
         </div>
       </div>
     );
@@ -473,11 +554,15 @@ function AdminApp({ onLogout, user }) {
     const filteredAnomalies = Object.entries(auditData).filter(([, v]) => v.status === 'nok' && filterByPeriod(v.date)).map(([k, v]) => ({ ...v, ...{ building: BUILDINGS_DATA.find(b => b.id === k.split('-')[0]), zone: k.split('-')[1], item: CHECKLIST_ITEMS.find(i => i.id === k.split('-')[2]) } }));
     const filteredTasks = planningTasks.filter(t => t.completed && filterByPeriod(t.date));
     return (
-      <div className="max-w-5xl mx-auto p-8 bg-white min-h-screen relative">
+      <div className="max-w-6xl mx-auto p-8 bg-white min-h-screen relative">
         {signingRole && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-6 rounded shadow-xl"><canvas ref={canvasRef} width={460} height={200} className="border border-dashed bg-gray-50" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} /><div className="flex justify-between mt-4"><button onClick={clearSignature} className="px-4 py-2 bg-gray-100 rounded">Limpar</button><button onClick={saveSignature} className="px-4 py-2 bg-emerald-600 text-white rounded">Guardar</button></div></div></div>}
-        <div className="flex justify-between items-start border-b-2 border-emerald-600 pb-4 mb-8"><div><h1 className="text-3xl font-bold uppercase">Relatório {reportType === 'weekly' ? 'Semanal' : reportType === 'monthly' ? 'Mensal' : 'Anual'}</h1><p className="text-emerald-700 font-semibold mt-2">{getPeriodLabel()}</p></div><div className="flex gap-2"><button onClick={() => handleGenerateReportEmail(filteredAnomalies, filteredTasks)} disabled={isGeneratingText} className="print:hidden bg-indigo-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-indigo-700">{isGeneratingText ? <Loader2 className="w-4 h-4 animate-spin"/> : <Mail className="w-4 h-4"/>} Gerar Email</button><button onClick={handlePrint} className="print:hidden bg-emerald-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-emerald-700"><Printer className="w-4 h-4"/> Imprimir</button></div></div>
-        <section className="mb-8 bg-indigo-50 p-6 rounded-lg border border-indigo-100 print:bg-white print:border-gray-200"><div className="flex justify-between items-start mb-2"><h2 className="text-lg font-bold text-indigo-900 flex items-center gap-2"><Sparkles className="w-5 h-5"/> Resumo Executivo (IA)</h2><button onClick={() => handleGenerateReportSummary(filteredAnomalies, filteredTasks)} disabled={isGeneratingSummary} className="print:hidden text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-50">{isGeneratingSummary ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}{isGeneratingSummary ? 'A Gerar...' : 'Gerar Resumo'}</button></div><p className="text-sm text-gray-700 italic leading-relaxed whitespace-pre-line">{reportSummary || "Clique em 'Gerar Resumo' para que a IA analise os dados deste período."}</p></section>
-        <section className="mb-10"><h2 className="text-xl font-bold mb-4 border-b pb-2 flex items-center gap-2 text-red-600"><AlertTriangle className="w-5 h-5"/> Anomalias Detetadas ({filteredAnomalies.length})</h2><table className="w-full text-sm border-collapse"><thead className="bg-gray-100"><tr><th className="p-2 border text-left">Data</th><th className="p-2 border text-left">Local</th><th className="p-2 border text-left">Problema</th><th className="p-2 border text-left">Medidas</th><th className="p-2 border text-center">Foto</th></tr></thead><tbody>{filteredAnomalies.length === 0 ? <tr><td colSpan="5" className="p-4 text-center text-gray-500 italic">Sem anomalias.</td></tr> : filteredAnomalies.map((e, i) => (<tr key={i} className="border-b"><td className="p-2 border font-medium text-xs">{e.date}</td><td className="p-2 border"><strong>{e.building?.name}</strong><br/>{e.zone}</td><td className="p-2 border">{e.item?.label} <br/> <span className="text-xs text-gray-500">{e.details?.causes}</span></td><td className="p-2 border">{e.details?.measures}</td><td className="p-2 border text-center">{e.photo ? <img src={e.photo} className="h-12 w-12 object-cover mx-auto rounded border"/> : '-'}</td></tr>))}</tbody></table></section>
+        <div className="flex justify-between items-start border-b-2 border-emerald-600 pb-4 mb-8">
+            <div><h1 className="text-3xl font-bold uppercase">Relatório</h1><div className="mt-2 flex items-center gap-4 print:hidden"><select value={reportType} onChange={e => setReportType(e.target.value)} className="border rounded p-1 text-sm"><option value="daily">Diário</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="annual">Anual</option></select><input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className="border rounded p-1 text-sm"/></div><p className="text-emerald-700 font-semibold mt-2">{getPeriodLabel()}</p></div>
+            <div className="flex gap-2"><button onClick={() => handleExportToSheets(filteredTasks)} className="print:hidden bg-green-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-green-700"><FileSpreadsheet className="w-4 h-4"/> Exportar Sheets</button><button onClick={handlePrint} className="print:hidden bg-emerald-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-emerald-700"><Printer className="w-4 h-4"/> Imprimir</button></div>
+        </div>
+        <section className="mb-10"><h2 className="text-xl font-bold mb-4 border-b pb-2 flex items-center gap-2 text-emerald-600"><CheckCircle2 className="w-5 h-5"/> Trabalhos Concluídos ({filteredTasks.length})</h2>
+        <table className="w-full text-sm border-collapse"><thead className="bg-gray-100"><tr><th className="p-2 border text-left">Data</th><th className="p-2 border text-left">Tarefa</th><th className="p-2 border text-left">Executado Por</th><th className="p-2 border text-left">Tempo</th><th className="p-2 border text-left">Observações</th><th className="p-2 border text-center">Foto</th></tr></thead><tbody>{filteredTasks.length === 0 ? <tr><td colSpan="6" className="p-4 text-center text-gray-500 italic">Sem tarefas concluídas.</td></tr> : filteredTasks.map((t, i) => (<tr key={i} className="border-b"><td className="p-2 border text-xs">{t.date}</td><td className="p-2 border font-medium">{t.desc}</td><td className="p-2 border text-gray-600">{t.completedBy || t.assignedTo}</td><td className="p-2 border">{t.duration || '-'}</td><td className="p-2 border text-xs italic">{t.observations} {t.workerObservations}</td><td className="p-2 border text-center">{t.completionPhoto ? <img src={t.completionPhoto} className="h-12 w-12 object-cover mx-auto rounded border"/> : '-'}</td></tr>))}</tbody></table></section>
+        {/* Assinaturas */}
         <div className="mt-16 grid grid-cols-2 gap-20"><div className="text-center">{signatures.responsible ? <img src={signatures.responsible} className="h-24 mx-auto object-contain" /> : <button onClick={() => setSigningRole('responsible')} className="print:hidden border px-3 py-1 rounded text-sm mb-4">Assinar</button>}<div className="border-t border-black pt-2 text-sm font-bold">Responsável Manutenção</div></div><div className="text-center">{signatures.client ? <img src={signatures.client} className="h-24 mx-auto object-contain" /> : <button onClick={() => setSigningRole('client')} className="print:hidden border px-3 py-1 rounded text-sm mb-4">Assinar</button>}<div className="border-t border-black pt-2 text-sm font-bold">Administração</div></div></div>
       </div>
     );
@@ -550,23 +635,29 @@ function WorkerApp({ onLogout, user }) {
         <div><div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-800 flex items-center gap-2 text-lg"><Briefcase className="w-5 h-5 text-emerald-600" /> A Tua Lista</h3></div>
           {loading ? <div className="flex justify-center p-10"><RefreshCw className="w-8 h-8 animate-spin text-emerald-500"/></div> : pendingTasks.length === 0 ? <div className="bg-white p-10 rounded-3xl text-center border-2 border-dashed border-gray-200 flex flex-col items-center"><div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-4"><CheckCircle2 className="w-8 h-8 text-emerald-400" /></div><h4 className="text-gray-800 font-bold mb-1">Tudo limpo!</h4><p className="text-gray-400 text-sm">Bom trabalho, não tens tarefas pendentes.</p></div> : (
             <div className="space-y-4">
-              {pendingTasks.map(task => (<div key={task.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden"><div className={`absolute left-0 top-0 bottom-0 w-1.5 ${task.cat === 'Vistoria' ? 'bg-amber-500' : task.cat === 'Detetado em Obra' ? 'bg-purple-500' : 'bg-blue-500'}`}></div><div className="ml-2"><div className="flex justify-between items-start mb-3"><span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${task.cat === 'Vistoria' ? 'bg-amber-50 text-amber-700' : task.cat === 'Detetado em Obra' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>{task.cat}</span>{task.assignedTo && <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md flex items-center gap-1"><User className="w-3 h-3"/> {task.assignedTo}</span>}</div><h4 className="font-bold text-gray-800 text-lg leading-snug mb-3">{task.desc}</h4>{task.initialPhoto && <div className="mb-3"><span className="text-[10px] text-gray-400 uppercase font-bold">Foto do Problema:</span><img src={task.initialPhoto} alt="Anomalia" className="h-24 w-full object-cover rounded-lg border border-gray-100 mt-1" /></div>}{task.recommendation && <div className="mb-4 bg-amber-50 p-3 rounded-xl border border-amber-100 text-sm text-amber-800 flex gap-3 items-start"><AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" /><span className="leading-snug">{task.recommendation}</span></div>}<div className="flex gap-3 mt-5"><label className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer font-bold text-sm transition-all border ${uploading === task.id ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, task.id)} disabled={uploading === task.id} />{uploading === task.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}<span>{uploading === task.id ? 'A enviar...' : 'Foto & Feito'}</span></label><button onClick={() => handleCompleteTask(task.id, task.completed)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all"><CheckCircle2 className="w-5 h-5" /></button></div></div>{(task.duration || task.materials) && (<div className="ml-2 mt-3 pt-3 border-t border-gray-100 flex gap-4 text-xs text-gray-500">{task.duration && <div className="flex items-center gap-1"><Clock className="w-3 h-3"/> {task.duration}</div>}{task.materials && <div className="flex items-center gap-1"><Package className="w-3 h-3"/> {task.materials}</div>}</div>)}</div>))}
+              {pendingTasks.map(task => (<div key={task.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden"><div className={`absolute left-0 top-0 bottom-0 w-1.5 ${task.cat === 'Vistoria' ? 'bg-amber-500' : task.cat === 'Detetado em Obra' ? 'bg-purple-500' : 'bg-blue-500'}`}></div><div className="ml-2"><div className="flex justify-between items-start mb-3"><span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${task.cat === 'Vistoria' ? 'bg-amber-50 text-amber-700' : task.cat === 'Detetado em Obra' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>{task.cat}</span>{task.assignedTo && <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md flex items-center gap-1"><User className="w-3 h-3"/> {task.assignedTo}</span>}</div><h4 className="font-bold text-gray-800 text-lg leading-snug mb-3">{task.desc}</h4>{task.initialPhoto && <div className="mb-3"><span className="text-[10px] text-gray-400 uppercase font-bold">Foto do Problema:</span><img src={task.initialPhoto} alt="Anomalia" className="h-24 w-full object-cover rounded-lg border border-gray-100 mt-1" /></div>}{task.recommendation && <div className="mb-4 bg-amber-50 p-3 rounded-xl border border-amber-100 text-sm text-amber-800 flex gap-3 items-start"><AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" /><span className="leading-snug">{task.recommendation}</span></div>}
+              <div className="mb-4">
+                  {/* INFORMAÇÕES EXTRAS VISÍVEIS AO TRABALHADOR */}
+                  {(task.duration || task.materials || task.measures) && (
+                      <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded border border-gray-100 mb-2">
+                          <p className="font-bold mb-1">Estimativa da Coordenação (IA):</p>
+                          {task.duration && <p>⏱️ Tempo: {task.duration}</p>}
+                          {task.materials && <p>📦 Material: {task.materials}</p>}
+                          {task.measures && <p>📏 Medidas: {task.measures}</p>}
+                      </div>
+                  )}
+                  <label className="text-[10px] text-gray-400 uppercase font-bold">Minhas Observações:</label>
+                  <input type="text" className="w-full text-sm border rounded p-2 mt-1" placeholder="Ex: Tive de comprar mais parafusos..." defaultValue={task.workerObservations || ''} onBlur={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { workerObservations: e.target.value })}/>
+              </div>
+              <div className="flex gap-3 mt-5"><label className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer font-bold text-sm transition-all border ${uploading === task.id ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, task.id)} disabled={uploading === task.id} />{uploading === task.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}<span>{uploading === task.id ? 'A enviar...' : 'Foto & Feito'}</span></label><button onClick={() => handleCompleteTask(task.id, task.completed)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all"><CheckCircle2 className="w-5 h-5" /></button></div></div></div>))}
             </div>
           )}
         </div>
-        {completedTasks.length > 0 && (<div className="pt-6 border-t border-gray-100"><h3 className="font-bold text-gray-400 text-xs uppercase tracking-wider mb-4 pl-1">Concluídas Hoje</h3><div className="space-y-3">{completedTasks.map(task => (<div key={task.id} className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex justify-between items-center opacity-70"><div className="flex items-center gap-3 overflow-hidden"><div className="bg-emerald-100 p-1.5 rounded-full flex-shrink-0"><CheckCircle2 className="w-4 h-4 text-emerald-600" /></div><span className="text-gray-600 line-through text-sm truncate">{task.desc}</span></div>{task.completionPhoto && <div className="bg-white p-1 rounded border"><ImageIcon size={14} className="text-gray-400" /></div>}</div>))}</div></div>)}
       </main>
     </div>
   );
 }
 
-// === MONTAGEM DO APP (CORREÇÃO DA TELA BRANCA) ===
+// === MONTAGEM DO APP ===
 const container = document.getElementById('root');
-if (container) {
-  const root = createRoot(container);
-  root.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
-}
+if (container) { const root = createRoot(container); root.render(<React.StrictMode><App /></React.StrictMode>); }
