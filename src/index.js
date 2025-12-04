@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 import React, { useState, useRef, useEffect } from 'react';
-import { createRoot } from 'react-dom/client'; // ✅ Única importação necessária para React 18
+import ReactDOM from 'react-dom'; // ✅ MUDANÇA: Usar ReactDOM estável
 import { 
   ClipboardCheck, Building2, MapPin, CheckCircle2, XCircle, Save, 
   LayoutDashboard, ChevronRight, ChevronDown, Droplets, Lightbulb, 
@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-// --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
+// --- 1. CONFIGURAÇÃO MANUAL DO FIREBASE (CORRIGIDA) ---
 const firebaseConfig = {
   apiKey: "AIzaSyAo6MPtHy6b-n0rKvZtuy_TCJPG8qye7oU", 
   authDomain: "manutencaoappcsm.firebaseapp.com", 
@@ -30,7 +30,11 @@ const firebaseConfig = {
   appId: "1:109430393454:web:f2a56b08e2ff9ad755f47f"
 };
 
-// Inicialização Segura do Firebase
+// --- 2. CONFIGURAÇÃO GEMINI API ---
+const apiKey = "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE"; 
+const appId = 'default-app-id';
+
+// Inicialização Segura do Firebase fora do componente
 let app, auth, db;
 try {
   app = initializeApp(firebaseConfig);
@@ -39,10 +43,6 @@ try {
 } catch (e) {
   console.error("Erro Crítico Firebase:", e);
 }
-
-// --- CONFIGURAÇÃO GEMINI API ---
-const apiKey = "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE"; 
-const appId = 'default-app-id'; 
 
 // Funções da IA
 async function callGeminiVision(base64Image, prompt) {
@@ -69,7 +69,6 @@ async function callGeminiText(prompt) {
   } catch (error) { console.error("Erro Texto:", error); return null; }
 }
 
-// Dados Estáticos
 const CHECKLIST_ITEMS = [
   { id: 'limpeza', label: 'Limpeza Geral / Lixo', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
   { id: 'vidros', label: 'Vidros e Fachadas', category: 'Limpeza', icon: <ClipboardCheck className="w-4 h-4" /> },
@@ -106,9 +105,7 @@ export default function App() {
   useEffect(() => {
     if (auth) {
         signInAnonymously(auth)
-            .then(() => {
-                setDbError(null);
-            })
+            .then(() => setDbError(null))
             .catch(e => {
                 console.error("Erro Detalhado:", e);
                 setDbError(`ERRO: ${e.code} - ${e.message}. Verifique 'Authorized Domains' no Firebase.`);
@@ -188,7 +185,7 @@ function LoginScreen({ onSelectRole }) {
           <div className="flex items-center gap-4"><div className="p-3 bg-emerald-500/20 rounded-xl group-hover:bg-emerald-500/30 transition-colors"><Hammer className="w-6 h-6 text-emerald-400" /></div><div className="text-left"><span className="block font-bold text-lg">Equipa Técnica</span><span className="text-sm text-emerald-200/70">Registo de trabalhos e fotos</span></div></div><ChevronRight className="w-5 h-5 text-white/50" />
         </button>
       </div>
-      <p className="mt-12 text-xs text-white/20">v3.14 Full Integrated System</p>
+      <p className="mt-12 text-xs text-white/20">v3.15 Full Integrated System</p>
     </div>
   );
 }
@@ -680,7 +677,7 @@ function AdminApp({ onLogout, user, setDbError }) {
   );
 }
 
-// === MONTAGEM DO APP (MODO AUTOMÁTICO) ===
-// A inicialização manual com ReactDOM foi removida para evitar conflitos com React 18.
-// O sistema de build injeta a raiz automaticamente.
+// === MONTAGEM DO APP ===
+// Removido o bloco manual para evitar conflito com o React 18 do Vercel
+// O sistema chamará automaticamente a renderização baseada no "export default"
 export { App };
