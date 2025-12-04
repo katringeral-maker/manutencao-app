@@ -23,7 +23,7 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 // --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE",
-  authDomain: "manutencao-csm.firebaseapp.com", // Domínio genérico para evitar crash
+  authDomain: "manutencao-csm.firebaseapp.com",
   projectId: "manutencao-csm",
   storageBucket: "manutencao-csm.appspot.com"
 };
@@ -42,29 +42,29 @@ try {
 const apiKey = "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE"; 
 const appId = 'default-app-id'; 
 
-// Funções da IA
+// Funções da IA (ATUALIZADAS PARA MODELO FLASH 1.5 - MAIS RÁPIDO E FIÁVEL)
 async function callGeminiVision(base64Image, prompt) {
   if (!apiKey) { alert("API Key não configurada."); return null; }
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: base64Image } }] }] })
     });
     const data = await response.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text;
-  } catch (error) { return null; }
+  } catch (error) { console.error("Erro Visão:", error); return null; }
 }
 
 async function callGeminiText(prompt) {
   if (!apiKey) return null;
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
     });
     const data = await response.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text;
-  } catch (error) { return null; }
+  } catch (error) { console.error("Erro Texto:", error); return null; }
 }
 
 // Dados Estáticos
@@ -205,63 +205,138 @@ function AdminApp({ onLogout, user }) {
   const isDrawing = useRef(false);
   const chatEndRef = useRef(null);
 
+  // --- CARREGAMENTO DE DADOS (Sync Firestore) ---
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    
+    // Ler Tarefas
+    const tasksQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'));
+    const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
         const tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Ordenar por concluídas no fim e data
         tasks.sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? 1 : -1);
         setPlanningTasks(tasks);
-    }, () => {});
+    }, (err) => console.error("Erro a ler tarefas:", err));
+
+    // Ler Definições
     const metaRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'planning');
-    const unsubMeta = onSnapshot(metaRef, (docSnap) => {
+    const unsubscribeMeta = onSnapshot(metaRef, (docSnap) => {
         if (docSnap.exists()) setPlanning(docSnap.data());
-    }, () => {});
-    return () => { unsubscribe(); unsubMeta(); };
+    }, (err) => console.error("Erro a ler settings:", err));
+
+    return () => { unsubscribeTasks(); unsubscribeMeta(); };
   }, [user]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMessages]);
 
+  // --- FUNÇÕES DE AUXÍLIO ---
+  const getAuditKey = (bid, zone, iid) => `${bid}-${zone}-${iid}`;
+
+  // --- FUNÇÕES DE VISTORIA (Correção Input Manual e Foto) ---
+  const handleCheck = (itemId, status) => { 
+      if (!selectedBuilding || !selectedZone) return;
+      const key = getAuditKey(selectedBuilding.id, selectedZone, itemId);
+      
+      // Se for NOK, inicializa o objeto details vazio para evitar erro ao escrever
+      const details = status === 'nok' ? { causes: '', measures: '', forecast: '' } : null;
+      
+      setAuditData(prev => ({ 
+          ...prev, 
+          [key]: { 
+              ...prev[key], 
+              status: status, 
+              date: inspectionDate, 
+              details: prev[key]?.details || details // Mantém o que já estava escrito ou cria novo
+          } 
+      })); 
+  };
+
+  const handleDetailChange = (itemId, field, value) => {
+      if (!selectedBuilding || !selectedZone) return;
+      const key = getAuditKey(selectedBuilding.id, selectedZone, itemId);
+      setAuditData(prev => ({
+          ...prev,
+          [key]: {
+              ...prev[key],
+              details: {
+                  ...prev[key].details,
+                  [field]: value
+              }
+          }
+      }));
+  };
+
+  const handlePhotoUpload = (itemId, e) => { 
+      const f = e.target.files[0]; 
+      if (f) {
+          const key = getAuditKey(selectedBuilding.id, selectedZone, itemId);
+          setAuditData(p => ({ ...p, [key]: { ...p[key], photo: URL.createObjectURL(f) } }));
+      }
+  };
+
+  // --- SINCRONIZAÇÃO VISTORIA -> PLANEAMENTO (Correção) ---
+  // Verifica continuamente se há erros 'nok' sem tarefa criada
+  useEffect(() => {
+    if (!user) return;
+    Object.entries(auditData).forEach(async ([key, value]) => {
+      // Se tiver erro (nok) E ainda não tiver sido sincronizado
+      if (value.status === 'nok' && !value.syncedToTasks) {
+        const [buildingId, zoneName, itemId] = key.split('-');
+        const building = BUILDINGS_DATA.find(b => b.id === buildingId)?.name;
+        const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
+        const taskId = `auto_${key}`; // ID único para evitar duplicados
+
+        // Verifica se a tarefa já existe no array local para não abusar do Firestore
+        if (!planningTasks.find(t => t.id === taskId || t.originId === taskId)) {
+            const description = `Reparar ${itemLabel} em ${building} - ${zoneName}`;
+            
+            // Adiciona ao Firestore
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+                    desc: description,
+                    cat: 'Vistoria', 
+                    date: inspectionDate, 
+                    originId: taskId, 
+                    completed: false, 
+                    recommendation: `${value.details?.causes || ''} -> ${value.details?.measures || ''}`, 
+                    assignedTo: 'Equipa Interna',
+                    createdAt: new Date().toISOString()
+                });
+                
+                // Marca como sincronizado localmente para parar de tentar criar
+                setAuditData(prev => ({ ...prev, [key]: { ...prev[key], syncedToTasks: true } }));
+            } catch (e) { console.error("Erro ao sincronizar tarefa:", e); }
+        }
+      }
+    });
+  }, [auditData, user, inspectionDate, planningTasks]); // Corre quando estes mudam
+
+  // --- FUNÇÕES DE PLANEAMENTO ---
   const updatePlanningMeta = async (newData) => {
      const updated = { ...planning, ...newData };
      setPlanning(updated); 
      if (user) { try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'planning'), updated); } catch(e) {} }
   };
 
-  const handleAddTaskToFirestore = async (task) => {
-    if (!user) return;
-    try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...task, completed: false, assignedTo: 'Equipa Interna', createdAt: new Date().toISOString() }); } catch (e) {}
+  const handleCreateNewTask = async () => { 
+      if (!newTaskInput.trim()) return; 
+      try {
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+              desc: newTaskInput, 
+              cat: 'Manual', 
+              date: new Date().toISOString().split('T')[0], 
+              assignedTo: 'Equipa Interna',
+              completed: false,
+              createdAt: new Date().toISOString()
+          }); 
+          setNewTaskInput(''); 
+      } catch(e) { alert("Erro ao criar tarefa. Verifique a internet."); }
   };
+
   const handleRemoveTask = async (taskId) => { if (!user) return; try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId)); } catch (e) {} };
   const handleToggleTask = async (taskId, currentStatus) => { if (!user) return; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completed: !currentStatus }); } catch (e) {} };
 
-  // --- SINCRONIZAÇÃO VISTORIA -> PLANEAMENTO ---
-  useEffect(() => {
-    if (!user) return;
-    Object.entries(auditData).forEach(async ([key, value]) => {
-      if (value.status === 'nok' && !value.syncedToTasks) {
-        const [buildingId, zoneName, itemId] = key.split('-');
-        const building = BUILDINGS_DATA.find(b => b.id === buildingId)?.name;
-        const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
-        const taskId = `auto_${key}`;
-        if (!planningTasks.find(t => t.id === taskId || t.originId === taskId)) {
-            // Cria tarefa com recomendação, causas e medidas
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
-                desc: `Reparar ${itemLabel} em ${building} - ${zoneName}`, 
-                cat: 'Vistoria', 
-                date: inspectionDate, 
-                originId: taskId, 
-                completed: false, 
-                recommendation: `${value.details?.causes || ''} - ${value.details?.measures || ''}`, // Medidas da vistoria
-                assignedTo: 'Equipa Interna' 
-            });
-            setAuditData(prev => ({ ...prev, [key]: { ...prev[key], syncedToTasks: true } }));
-        }
-      }
-    });
-  }, [auditData, user, inspectionDate, planningTasks]);
-
-  // --- FUNÇÕES DA IA (MEDIDAS/MATERIAIS/TEMPO) ---
+  // --- FUNÇÕES DA IA (Correção: Modelo Flash 1.5 + JSON robusto) ---
   const handleEstimateTaskDetails = async (task) => {
     setEstimatingTaskId(task.id);
     const staffCount = planning.teamType === 'internal' ? 'equipa interna atual' : 'empresa externa';
@@ -269,34 +344,69 @@ function AdminApp({ onLogout, user }) {
     1. Tempo de execução (ex: "2 horas (2 pax)"). 
     2. Materiais necessários e quantidades (ex: "5L Tinta Branca, 2 Rolos"). 
     3. Medidas aproximadas (ex: "20m2"). 
-    Responde APENAS JSON válido: {"duration": "...", "materials": "...", "measures": "..."}`;
+    Responde APENAS JSON puro neste formato: {"duration": "...", "materials": "...", "measures": "..."} sem markdown.`;
     
     const resultText = await callGeminiText(prompt);
     if (resultText) { 
         try { 
+            // Limpeza extra para garantir JSON válido (remove ```json e ```)
             const cleanJson = resultText.replace(/```json|```/g, '').trim(); 
             const result = JSON.parse(cleanJson); 
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { 
                 duration: result.duration, 
                 materials: result.materials,
-                measures: result.measures // Novo campo
+                measures: result.measures 
             }); 
-        } catch (e) { console.error("Erro JSON IA", e); } 
+        } catch (e) { 
+            console.error("Erro JSON IA:", e); 
+            alert("A IA respondeu, mas o formato falhou. Tente novamente.");
+        } 
     }
     setEstimatingTaskId(null);
   };
 
+  const handleAnalyzePhoto = async (itemId, buildingId, zoneName) => {
+    const key = getAuditKey(buildingId, zoneName, itemId);
+    const photoUrl = auditData[key]?.photo;
+    if (!photoUrl) { alert("Adicione foto primeiro."); return; }
+    setAnalyzingItem(itemId);
+    try {
+      const response = await fetch(photoUrl); const blob = await response.blob(); const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64data = reader.result.split(',')[1];
+        const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
+        const prompt = `Analisa esta foto de manutenção (${itemLabel} em ${zoneName}). Identifica a Causa provável e Medidas de Reparação. Responde APENAS JSON: {"causes": "...", "measures": "..."}`;
+        const resultText = await callGeminiVision(base64data, prompt);
+        if (resultText) { try { const cleanJson = resultText.replace(/```json|```/g, '').trim(); const result = JSON.parse(cleanJson); handleDetailChange(itemId, 'causes', result.causes); handleDetailChange(itemId, 'measures', result.measures); } catch (e) {} }
+        setAnalyzingItem(null);
+      };
+      reader.readAsDataURL(blob);
+    } catch (e) { setAnalyzingItem(null); }
+  };
+
+  const handleGetRecommendationText = async (itemId, buildingId, zoneName, causeText) => {
+    if (!causeText) { alert("Descreva o problema primeiro."); return; }
+    const key = getAuditKey(buildingId, zoneName, itemId);
+    setIsGettingRecommendation(true);
+    const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
+    const prompt = `Dá uma solução técnica curta para reparar: ${itemLabel} em ${zoneName}. Problema: "${causeText}".`;
+    const recommendation = await callGeminiText(prompt);
+    if (recommendation) handleDetailChange(itemId, 'measures', recommendation);
+    setIsGettingRecommendation(false);
+  };
+
+  // --- RELATÓRIOS E EXPORTAÇÃO ---
   const handleExportToSheets = (tasks) => {
     const headers = ["Data", "Tarefa", "Categoria", "Estado", "Responsável", "Tempo Execução", "Quem Executou", "Observações"];
     const csvContent = "data:text/csv;charset=utf-8," + 
         headers.join(",") + "\n" + 
         tasks.map(t => [
             t.date, 
-            `"${t.desc.replace(/"/g, '""')}"`, 
+            `"${(t.desc || "").replace(/"/g, '""')}"`, 
             t.cat, 
             t.completed ? "Concluído" : "Pendente", 
             t.assignedTo,
-            t.completed ? (t.duration || "-") : "-", // Tempo real ou estimado
+            t.completed ? (t.duration || "-") : "-", 
             t.completedBy || "-",
             `"${(t.observations || "")} ${(t.workerObservations || "")}"`
         ].join(",")).join("\n");
@@ -308,42 +418,21 @@ function AdminApp({ onLogout, user }) {
     link.click();
   };
 
-  // --- OUTRAS FUNÇÕES ---
-  const handleAnalyzePhoto = async (itemId, buildingId, zoneName) => {
-    const key = getAuditKey(buildingId, zoneName, itemId);
-    const photoUrl = auditData[key]?.photo;
-    if (!photoUrl) { alert("Adicione foto."); return; }
-    setAnalyzingItem(itemId);
-    try {
-      const response = await fetch(photoUrl); const blob = await response.blob(); const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64data = reader.result.split(',')[1];
-        const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
-        const prompt = `Analisa anomalia: ${itemLabel} em ${zoneName}. Causa provável e Medidas de Reparação. JSON: {"causes": "...", "measures": "..."}`;
-        const resultText = await callGeminiVision(base64data, prompt);
-        if (resultText) { try { const cleanJson = resultText.replace(/```json|```/g, '').trim(); const result = JSON.parse(cleanJson); setAuditData(prev => ({ ...prev, [key]: { ...prev[key], details: { ...prev[key].details, causes: result.causes, measures: result.measures } } })); } catch (e) {} }
-        setAnalyzingItem(null);
-      };
-      reader.readAsDataURL(blob);
-    } catch (e) { setAnalyzingItem(null); }
-  };
-
-  const handleGetRecommendationText = async (itemId, buildingId, zoneName, causeText) => {
-    if (!causeText) { alert("Descreva o problema."); return; }
-    const key = getAuditKey(buildingId, zoneName, itemId);
-    setIsGettingRecommendation(true);
-    const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
-    const prompt = `Sugere reparação para: ${itemLabel} em ${zoneName}. Problema: "${causeText}". Frase curta técnica.`;
-    const recommendation = await callGeminiText(prompt);
-    if (recommendation) setAuditData(prev => ({ ...prev, [key]: { ...prev[key], details: { ...prev[key].details, measures: recommendation } } }));
-    setIsGettingRecommendation(false);
+  const handleGenerateReportEmail = async (nokEntries, completedTasks) => {
+    setIsGeneratingText(true); setGeneratedTextType('email');
+    const period = getPeriodLabel();
+    const nokText = nokEntries.map(e => `- ${e.zone}: ${e.item?.label}`).join('\n');
+    const taskText = completedTasks.map(t => `- ${t.desc} (Feito por: ${t.completedBy || '?'})`).join('\n');
+    const prompt = `Escreve um Email formal para a Administração sobre o Relatório de Manutenção (${period}).\nDestaca que houve ${nokEntries.length} anomalias e ${completedTasks.length} trabalhos concluídos.\nLista de Anomalias:\n${nokText}\nLista de Concluídos:\n${taskText}`;
+    const content = await callGeminiText(prompt);
+    setGeneratedText(content); setIsGeneratingText(false);
   };
 
   const handleGenerateReportSummary = async (nokEntries, completedTasks) => {
     setIsGeneratingSummary(true);
-    const nokText = nokEntries.map(e => `- ${e.zone}: ${e.item?.label} (${e.details?.causes})`).join('\n');
-    const taskText = completedTasks.map(t => `- ${t.desc} (por ${t.completedBy || t.assignedTo})`).join('\n');
-    const prompt = `Resumo Executivo para Relatório Manutenção. Anomalias:\n${nokText}\nTrabalhos Feitos:\n${taskText}`;
+    const nokText = nokEntries.map(e => `- ${e.zone}: ${e.item?.label}`).join('\n');
+    const taskText = completedTasks.map(t => `- ${t.desc}`).join('\n');
+    const prompt = `Escreve um Resumo Executivo profissional sobre a manutenção. Problemas detetados: ${nokEntries.length}. Resolvidos: ${completedTasks.length}. Dados: \n${nokText}\n${taskText}`;
     const summary = await callGeminiText(prompt);
     if (summary) setReportSummary(summary);
     setIsGeneratingSummary(false);
@@ -353,62 +442,25 @@ function AdminApp({ onLogout, user }) {
     setIsGeneratingText(true); setGeneratedTextType('whatsapp');
     const tasksToSend = planningTasks.filter(t => !t.completed);
     const taskList = tasksToSend.map(t => `👉 ${t.desc} (${t.assignedTo})`).join('\n');
-    const prompt = `Cria mensagem WhatsApp para a equipa com estas tarefas:\n${taskList}`;
+    const prompt = `Cria mensagem WhatsApp para a equipa com estas tarefas pendentes:\n${taskList}`;
     const content = await callGeminiText(prompt);
     setGeneratedText(content); setIsGeneratingText(false);
   };
 
-  const handleGenerateReportEmail = async (nokEntries, completedTasks) => {
-    setIsGeneratingText(true); setGeneratedTextType('email');
-    const nokText = nokEntries.map(e => `- ${e.zone}: ${e.item?.label}`).join('\n');
-    const taskText = completedTasks.map(t => `- ${t.desc}`).join('\n');
-    const prompt = `Email formal entrega Relatório Manutenção. Destaques: ${nokEntries.length} anomalias, ${completedTasks.length} conclusões.\nListas:\n${nokText}\n${taskText}`;
-    const content = await callGeminiText(prompt);
-    setGeneratedText(content); setIsGeneratingText(false);
-  };
-
+  // --- CHAT E UTILITÁRIOS ---
   const handleChatSubmit = async (e) => {
     e.preventDefault(); if (!chatInput.trim()) return;
     setChatMessages(p => [...p, { role: 'user', text: chatInput }]); setChatInput(""); setIsChatLoading(true);
-    const response = await callGeminiText(`Especialista manutenção desportiva: "${chatInput}"`);
-    setChatMessages(p => [...p, { role: 'assistant', text: response || "Erro." }]); setIsChatLoading(false);
+    const response = await callGeminiText(`Como especialista em manutenção desportiva, responde: "${chatInput}"`);
+    setChatMessages(p => [...p, { role: 'assistant', text: response || "Erro ao contactar IA." }]); setIsChatLoading(false);
   };
 
-  // Lógica de Datas para Relatórios (Diário, Semanal, Mensal, Anual)
-  const getWeekRange = (dateString) => {
-    const d = new Date(dateString); const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1); const m = new Date(d); m.setDate(diff); const s = new Date(m); s.setDate(m.getDate() + 6);
-    return `${m.toLocaleDateString('pt-PT')} a ${s.toLocaleDateString('pt-PT')}`;
-  };
-  const getPeriodLabel = () => { 
-      const d = new Date(reportDate); 
-      if (reportType === 'daily') return d.toLocaleDateString('pt-PT');
-      if (reportType === 'weekly') return getWeekRange(reportDate); 
-      if (reportType === 'monthly') return d.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }); 
-      return `Ano ${d.getFullYear()}`; 
-  };
-  const filterByPeriod = (dateStr) => { 
-      if (!dateStr) return false; 
-      const itemDate = new Date(dateStr); 
-      const refDate = new Date(reportDate); 
-      if (reportType === 'daily') {
-          return itemDate.toDateString() === refDate.toDateString();
-      } else if (reportType === 'weekly') { 
-          const day = refDate.getDay(); 
-          const diff = refDate.getDate() - day + (day === 0 ? -6 : 1); 
-          const monday = new Date(refDate); monday.setDate(diff); monday.setHours(0,0,0,0); 
-          const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999); 
-          return itemDate >= monday && itemDate <= sunday; 
-      } else if (reportType === 'monthly') return itemDate.getMonth() === refDate.getMonth() && itemDate.getFullYear() === refDate.getFullYear(); 
-      else return itemDate.getFullYear() === refDate.getFullYear(); 
-  };
+  const handleFileImport = (e) => { const file = e.target.files[0]; if (!file) return; setIsImporting(true); const reader = new FileReader(); reader.readAsText(file, 'ISO-8859-1'); reader.onload = async (event) => { const text = event.target.result; const lines = text.split('\n'); let count = 0; for (let i = 0; i < lines.length; i++) { const line = lines[i].trim(); if (!line) continue; const separator = line.includes(';') ? ';' : ','; const cols = line.split(separator); if (cols.length >= 2) { const desc = cols[1].trim().replace(/^"|"$/g, ''); if (desc) { try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: desc, cat: cols[2]?.trim() || 'Importado', date: cols[0].trim() || new Date().toISOString().split('T')[0], assignedTo: 'Equipa Interna', completed: false, createdAt: new Date().toISOString() }); count++; } catch (err) {} } } } setIsImporting(false); alert(`${count} tarefas importadas!`); }; };
 
-  const handleCreateNewTask = () => { if (!newTaskInput.trim()) return; handleAddTaskToFirestore({ desc: newTaskInput, cat: 'Manual', date: new Date().toISOString().split('T')[0], assignedTo: 'Equipa Interna' }); setNewTaskInput(''); };
-  const handleFileImport = (e) => { const file = e.target.files[0]; if (!file) return; setIsImporting(true); const reader = new FileReader(); reader.readAsText(file, 'ISO-8859-1'); reader.onload = async (event) => { const text = event.target.result; const lines = text.split('\n'); let count = 0; for (let i = 0; i < lines.length; i++) { const line = lines[i].trim(); if (!line) continue; const separator = line.includes(';') ? ';' : ','; const cols = line.split(separator); if (cols.length >= 2) { const desc = cols[1].trim().replace(/^"|"$/g, ''); if (desc) { try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: desc, cat: cols[2]?.trim() || 'Importado', date: cols[0].trim() || new Date().toISOString().split('T')[0], assignedTo: 'Equipa Interna', completed: false, createdAt: new Date().toISOString() }); count++; } catch (err) {} } } } setIsImporting(false); alert(`${count} tarefas!`); }; };
+  const getWeekRange = (dateString) => { const d = new Date(dateString); const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1); const m = new Date(d); m.setDate(diff); const s = new Date(m); s.setDate(m.getDate() + 6); return `${m.toLocaleDateString('pt-PT')} a ${s.toLocaleDateString('pt-PT')}`; };
+  const getPeriodLabel = () => { const d = new Date(reportDate); if (reportType === 'daily') return d.toLocaleDateString('pt-PT'); if (reportType === 'weekly') return getWeekRange(reportDate); if (reportType === 'monthly') return d.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }); return `Ano ${d.getFullYear()}`; };
+  const filterByPeriod = (dateStr) => { if (!dateStr) return false; const itemDate = new Date(dateStr); const refDate = new Date(reportDate); if (reportType === 'daily') return itemDate.toDateString() === refDate.toDateString(); if (reportType === 'weekly') { const day = refDate.getDay(); const diff = refDate.getDate() - day + (day === 0 ? -6 : 1); const monday = new Date(refDate); monday.setDate(diff); monday.setHours(0,0,0,0); const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999); return itemDate >= monday && itemDate <= sunday; } else if (reportType === 'monthly') return itemDate.getMonth() === refDate.getMonth() && itemDate.getFullYear() === refDate.getFullYear(); else return itemDate.getFullYear() === refDate.getFullYear(); };
 
-  const getAuditKey = (bid, zone, iid) => `${bid}-${zone}-${iid}`;
-  const handleCheck = (iid, s) => { if (selectedBuilding && selectedZone) setAuditData(p => ({ ...p, [getAuditKey(selectedBuilding.id, selectedZone, iid)]: { ...p[getAuditKey(selectedBuilding.id, selectedZone, iid)], status: s, date: inspectionDate, details: s === 'nok' ? { causes: '', measures: '', forecast: '' } : null } })); };
-  const handleDetailChange = (iid, f, v) => setAuditData(p => ({ ...p, [getAuditKey(selectedBuilding.id, selectedZone, iid)]: { ...p[getAuditKey(selectedBuilding.id, selectedZone, iid)].details, [f]: v } } ));
-  const handlePhotoUpload = (iid, e) => { const f = e.target.files[0]; if (f) setAuditData(p => ({ ...p, [getAuditKey(selectedBuilding.id, selectedZone, iid)]: { ...p[getAuditKey(selectedBuilding.id, selectedZone, iid)], photo: URL.createObjectURL(f) } })) };
   const startDrawing = (e) => { isDrawing.current = true; draw(e); };
   const draw = (e) => { if (!isDrawing.current) return; e.preventDefault(); const ctx = canvasRef.current.getContext('2d'); const rect = canvasRef.current.getBoundingClientRect(); const x = (e.clientX||e.touches?.[0].clientX)-rect.left; const y = (e.clientY||e.touches?.[0].clientY)-rect.top; ctx.lineWidth=2; ctx.lineCap='round'; ctx.lineTo(x,y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x,y); };
   const stopDrawing = () => { isDrawing.current = false; canvasRef.current?.getContext('2d').beginPath(); };
@@ -416,6 +468,7 @@ function AdminApp({ onLogout, user }) {
   const saveSignature = () => { if (signingRole) setSignatures(p => ({...p, [signingRole]: canvasRef.current.toDataURL()})); setSigningRole(null); };
   const handlePrint = () => window.print();
 
+  // --- RENDERERS ---
   const renderInspection = () => {
     if (!selectedBuilding) return (
       <div className="p-6 text-center">
@@ -558,8 +611,14 @@ function AdminApp({ onLogout, user }) {
         {signingRole && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-6 rounded shadow-xl"><canvas ref={canvasRef} width={460} height={200} className="border border-dashed bg-gray-50" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} /><div className="flex justify-between mt-4"><button onClick={clearSignature} className="px-4 py-2 bg-gray-100 rounded">Limpar</button><button onClick={saveSignature} className="px-4 py-2 bg-emerald-600 text-white rounded">Guardar</button></div></div></div>}
         <div className="flex justify-between items-start border-b-2 border-emerald-600 pb-4 mb-8">
             <div><h1 className="text-3xl font-bold uppercase">Relatório</h1><div className="mt-2 flex items-center gap-4 print:hidden"><select value={reportType} onChange={e => setReportType(e.target.value)} className="border rounded p-1 text-sm"><option value="daily">Diário</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="annual">Anual</option></select><input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className="border rounded p-1 text-sm"/></div><p className="text-emerald-700 font-semibold mt-2">{getPeriodLabel()}</p></div>
-            <div className="flex gap-2"><button onClick={() => handleExportToSheets(filteredTasks)} className="print:hidden bg-green-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-green-700"><FileSpreadsheet className="w-4 h-4"/> Exportar Sheets</button><button onClick={handlePrint} className="print:hidden bg-emerald-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-emerald-700"><Printer className="w-4 h-4"/> Imprimir</button></div>
+            <div className="flex gap-2">
+                <button onClick={() => handleGenerateReportEmail(filteredAnomalies, filteredTasks)} disabled={isGeneratingText} className="print:hidden bg-indigo-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-indigo-700">{isGeneratingText ? <Loader2 className="w-4 h-4 animate-spin"/> : <Mail className="w-4 h-4"/>} Gerar Email</button>
+                <button onClick={() => handleExportToSheets(filteredTasks)} className="print:hidden bg-green-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-green-700"><FileSpreadsheet className="w-4 h-4"/> Exportar Sheets</button>
+                <button onClick={handlePrint} className="print:hidden bg-emerald-600 text-white px-4 py-2 rounded flex gap-2 items-center hover:bg-emerald-700"><Printer className="w-4 h-4"/> Imprimir</button>
+            </div>
         </div>
+        <section className="mb-8 bg-indigo-50 p-6 rounded-lg border border-indigo-100 print:bg-white print:border-gray-200"><div className="flex justify-between items-start mb-2"><h2 className="text-lg font-bold text-indigo-900 flex items-center gap-2"><Sparkles className="w-5 h-5"/> Resumo Executivo (IA)</h2><button onClick={() => handleGenerateReportSummary(filteredAnomalies, filteredTasks)} disabled={isGeneratingSummary} className="print:hidden text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-50">{isGeneratingSummary ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}{isGeneratingSummary ? 'A Gerar...' : 'Gerar Resumo'}</button></div><p className="text-sm text-gray-700 italic leading-relaxed whitespace-pre-line">{reportSummary || "Clique em 'Gerar Resumo' para que a IA analise os dados deste período."}</p></section>
+        <section className="mb-10"><h2 className="text-xl font-bold mb-4 border-b pb-2 flex items-center gap-2 text-red-600"><AlertTriangle className="w-5 h-5"/> Anomalias Detetadas ({filteredAnomalies.length})</h2><table className="w-full text-sm border-collapse"><thead className="bg-gray-100"><tr><th className="p-2 border text-left">Data</th><th className="p-2 border text-left">Local</th><th className="p-2 border text-left">Problema</th><th className="p-2 border text-left">Medidas</th><th className="p-2 border text-center">Foto</th></tr></thead><tbody>{filteredAnomalies.length === 0 ? <tr><td colSpan="5" className="p-4 text-center text-gray-500 italic">Sem anomalias.</td></tr> : filteredAnomalies.map((e, i) => (<tr key={i} className="border-b"><td className="p-2 border font-medium text-xs">{e.date}</td><td className="p-2 border"><strong>{e.building?.name}</strong><br/>{e.zone}</td><td className="p-2 border">{e.item?.label} <br/> <span className="text-xs text-gray-500">{e.details?.causes}</span></td><td className="p-2 border">{e.details?.measures}</td><td className="p-2 border text-center">{e.photo ? <img src={e.photo} className="h-12 w-12 object-cover mx-auto rounded border"/> : '-'}</td></tr>))}</tbody></table></section>
         <section className="mb-10"><h2 className="text-xl font-bold mb-4 border-b pb-2 flex items-center gap-2 text-emerald-600"><CheckCircle2 className="w-5 h-5"/> Trabalhos Concluídos ({filteredTasks.length})</h2>
         <table className="w-full text-sm border-collapse"><thead className="bg-gray-100"><tr><th className="p-2 border text-left">Data</th><th className="p-2 border text-left">Tarefa</th><th className="p-2 border text-left">Executado Por</th><th className="p-2 border text-left">Tempo</th><th className="p-2 border text-left">Observações</th><th className="p-2 border text-center">Foto</th></tr></thead><tbody>{filteredTasks.length === 0 ? <tr><td colSpan="6" className="p-4 text-center text-gray-500 italic">Sem tarefas concluídas.</td></tr> : filteredTasks.map((t, i) => (<tr key={i} className="border-b"><td className="p-2 border text-xs">{t.date}</td><td className="p-2 border font-medium">{t.desc}</td><td className="p-2 border text-gray-600">{t.completedBy || t.assignedTo}</td><td className="p-2 border">{t.duration || '-'}</td><td className="p-2 border text-xs italic">{t.observations} {t.workerObservations}</td><td className="p-2 border text-center">{t.completionPhoto ? <img src={t.completionPhoto} className="h-12 w-12 object-cover mx-auto rounded border"/> : '-'}</td></tr>))}</tbody></table></section>
         {/* Assinaturas */}
