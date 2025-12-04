@@ -9,7 +9,7 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, // <--- AQUI ESTAVA O ERRO: Faltava esta palavra!
+  RefreshCw, // <--- ESTE ERA O ÍCONE QUE FALTAVA E BLOQUEAVA A ATUALIZAÇÃO
   FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList
 } from 'lucide-react';
 
@@ -21,7 +21,8 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-// --- CONFIGURAÇÃO MANUAL DO FIREBASE (ID CORRIGIDO: manutencaoappcsm) ---
+// --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
+// Corrigido com base na sua Imagem 6 (manutencaoappcsm)
 const firebaseConfig = {
   apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
   authDomain: "manutencaoappcsm.firebaseapp.com", 
@@ -108,14 +109,13 @@ function App() {
             .then(() => setDbError(null))
             .catch(e => {
                 console.error("Erro Auth:", e);
-                setDbError("Erro de Autenticação. A página será recarregada em 3 segundos...");
-                setTimeout(() => window.location.reload(), 3000);
+                setDbError("Erro de Autenticação. Tente recarregar a página.");
             });
         onAuthStateChanged(auth, setUser);
     }
   }, []);
 
-  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">A carregar sistema...</div>;
+  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">Erro Crítico: Configuração do Firebase não encontrada.</div>;
 
   return (
     <>
@@ -231,9 +231,7 @@ function AdminApp({ onLogout, user, setDbError }) {
         setDbError(null);
     }, (err) => {
         console.error("Erro Tasks:", err);
-        if (err.code === 'permission-denied') {
-             setDbError("Erro de Permissão. Verifique as Regras do Firestore.");
-        }
+        setDbError("Erro ao ler tarefas: Base de dados não encontrada ou permissões insuficientes.");
     });
 
     // Ler Vistorias
@@ -261,7 +259,7 @@ function AdminApp({ onLogout, user, setDbError }) {
               createdAt: new Date().toISOString()
           });
       } catch (e) {
-          alert("Erro ao criar tarefa. Tente novamente.");
+          alert("Erro ao criar tarefa. Verifique a ligação.");
           console.error(e);
       }
   };
