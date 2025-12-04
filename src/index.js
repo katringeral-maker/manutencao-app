@@ -9,7 +9,7 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, // <--- ESTE ERA O ÍCONE QUE FALTAVA E BLOQUEAVA TUDO
+  RefreshCw, // <--- ESTE ERA O ÍCONE QUE FALTAVA E BLOQUEAVA A ATUALIZAÇÃO
   FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList
 } from 'lucide-react';
 
@@ -22,12 +22,12 @@ import {
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 // --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
-// Os dados foram retirados das suas imagens (Imagem 1 e 3)
+// Corrigido com base na sua Imagem 6 (manutencaoappcsm)
 const firebaseConfig = {
   apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
-  authDomain: "manutencaoappcsm.firebaseapp.com",
-  projectId: "manutencaoappcsm",
-  storageBucket: "manutencaoappcsm.appspot.com"
+  authDomain: "manutencaoappcsm.firebaseapp.com", 
+  projectId: "manutencaoappcsm", 
+  storageBucket: "manutencaoappcsm.appspot.com" 
 };
 
 // Inicialização Segura
@@ -231,7 +231,7 @@ function AdminApp({ onLogout, user, setDbError }) {
         setDbError(null);
     }, (err) => {
         console.error("Erro Tasks:", err);
-        setDbError("Erro ao ler tarefas.");
+        setDbError("Erro ao ler tarefas: Base de dados não encontrada ou permissões insuficientes.");
     });
 
     // Ler Vistorias
@@ -259,7 +259,7 @@ function AdminApp({ onLogout, user, setDbError }) {
               createdAt: new Date().toISOString()
           });
       } catch (e) {
-          alert("Erro ao criar tarefa.");
+          alert("Erro ao criar tarefa. Verifique se criou a Base de Dados no Firebase.");
           console.error(e);
       }
   };
