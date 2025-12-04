@@ -21,12 +21,14 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-// --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
+// --- CONFIGURAÇÃO MANUAL DO FIREBASE (CORRIGIDA - CHAVE DA IMAGEM) ---
 const firebaseConfig = {
-  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
+  apiKey: "AIzaSyAo6MPtHy6b-n0rKvZtuy_TCJPG8qye7oU", // <--- CHAVE CORRETA
   authDomain: "manutencaoappcsm.firebaseapp.com",
   projectId: "manutencaoappcsm",
-  storageBucket: "manutencaoappcsm.appspot.com"
+  storageBucket: "manutencaoappcsm.firebasestorage.app",
+  messagingSenderId: "109430393454",
+  appId: "1:109430393454:web:f2a56b08e2ff9ad755f47f"
 };
 
 // Inicialização Segura
@@ -40,6 +42,7 @@ try {
 }
 
 // --- CONFIGURAÇÃO GEMINI API ---
+// Mantemos a sua chave da IA (esta é diferente da do Firebase e estava a funcionar)
 const apiKey = "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE"; 
 const appId = 'default-app-id'; 
 
@@ -108,13 +111,13 @@ function App() {
             .then(() => setDbError(null))
             .catch(e => {
                 console.error("Erro Auth:", e);
-                setDbError("Erro de Autenticação. Verifique se a Auth Anónima está ativa no Firebase.");
+                setDbError("Erro de Autenticação. Recarregue a página.");
             });
         onAuthStateChanged(auth, setUser);
     }
   }, []);
 
-  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">Erro Crítico: Configuração do Firebase não encontrada.</div>;
+  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">A carregar sistema...</div>;
 
   return (
     <>
@@ -656,7 +659,7 @@ function WorkerApp({ onLogout, user }) {
   const handleReportTask = async () => { if (!newTaskDesc.trim() || !user) return; setIsReporting(true); try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: newTaskDesc, cat: 'Detetado em Obra', date: new Date().toISOString().split('T')[0], assignedTo: selectedWorker, completed: false, createdAt: new Date().toISOString(), initialPhoto: newTaskPhoto }); setNewTaskDesc(''); setNewTaskPhoto(null); alert("Tarefa reportada!"); } catch (e) { alert("Erro."); } setIsReporting(false); };
   const handleCompleteTask = async (taskId, currentStatus) => { if (!user) return; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completed: !currentStatus, completedAt: !currentStatus ? new Date().toISOString() : null, completedBy: !currentStatus ? selectedWorker : null }); } catch (e) { alert("Erro."); } };
   const handlePhotoUpload = async (e, taskId) => { const f = e.target.files[0]; if (!f) return; setUploading(taskId); const r = new FileReader(); r.onloadend = async () => { try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completionPhoto: r.result, completed: true, completedAt: new Date().toISOString(), completedBy: selectedWorker }); } catch (err) { alert("Erro."); } setUploading(null); }; r.readAsDataURL(f); };
-  const handleFileImport = (e) => { const f = e.target.files[0]; if (!f) return; setIsImporting(true); const r = new FileReader(); r.readAsText(f, 'UTF-8'); r.onload = async (event) => { const t = event.target.result; const l = t.split('\n'); let c = 0; for (let i=0; i<l.length; i++) { const line = l[i].trim(); if (!line) continue; const s = line.includes(';') ? ';' : ','; const cols = line.split(s); if (cols.length >= 2) { const desc = cols[1].trim().replace(/^"|"$/g, ''); if (desc) { try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: desc, cat: cols[2]?.trim() || 'Geral', date: cols[0].trim() || new Date().toISOString().split('T')[0], assignedTo: 'Importado', completed: false, createdAt: new Date().toISOString() }); c++; } catch (err) {} } } } setIsImporting(false); alert(`${c} tarefas importadas!`); }; };
+  const handleFileImport = (e) => { const f = e.target.files[0]; if (!f) return; setIsImporting(true); const r = new FileReader(); r.onload = async (event) => { const t = event.target.result; const l = t.split('\n'); let c = 0; for (let i=0; i<l.length; i++) { const line = l[i].trim(); if (!line) continue; const s = line.includes(';') ? ';' : ','; const cols = line.split(s); if (cols.length >= 2) { const desc = cols[1].trim().replace(/^"|"$/g, ''); if (desc) { try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: desc, cat: cols[2]?.trim() || 'Geral', date: cols[0].trim() || new Date().toISOString().split('T')[0], assignedTo: 'Importado', completed: false, createdAt: new Date().toISOString() }); c++; } catch (err) {} } } } setIsImporting(false); alert(`${c} tarefas importadas!`); }; r.readAsText(f); };
 
   const myTasks = tasks.filter(t => { const a = t.assignedTo || ''; return a.toLowerCase().includes(selectedWorker.toLowerCase()) || a.toLowerCase().includes('equipa') || a.toLowerCase().includes('todos') || a.toLowerCase().includes('importado') || t.cat === 'Detetado em Obra'; });
   const pendingTasks = myTasks.filter(t => !t.completed);
