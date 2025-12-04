@@ -238,29 +238,16 @@ function AdminApp({ onLogout, user }) {
     reader.readAsText(file);
   };
 
-  // IA: CALCULA TEMPO E MATERIAIS COM BASE NA EQUIPA
+  // IA: CALCULA TEMPO E MATERIAIS
   const handleEstimateTask = async (task) => {
     setEstimatingTaskId(task.id);
-    const equipa = task.assignedTo || "1 pessoa (padrão)";
-    const prompt = `
-      Sou gestor de manutenção.
-      Tarefa: "${task.desc}"
-      Equipa que vai executar: "${equipa}".
-      
-      Calcula a duração estimada considerando o tamanho desta equipa.
-      Se for uma equipa grande, o tempo deve ser menor.
-      
-      Responde APENAS JSON: {"duration": "ex: 2 horas", "materials": "ex: Tinta, rolos"}
-    `;
-    
+    const equipa = task.assignedTo || "1 pessoa";
+    const prompt = `Tarefa: "${task.desc}". Equipa: "${equipa}". Calcula duração e materiais. JSON: {"duration": "...", "materials": "..."}`;
     const resultText = await callGeminiText(prompt);
     if (resultText) {
       try {
         const res = JSON.parse(resultText.replace(/```json|```/g, '').trim());
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { 
-            duration: res.duration, 
-            materials: res.materials 
-        });
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { duration: res.duration, materials: res.materials });
       } catch (e) { console.error(e); }
     }
     setEstimatingTaskId(null);
@@ -275,11 +262,10 @@ function AdminApp({ onLogout, user }) {
     setIsGeneratingWhatsApp(false);
   };
 
-  // --- FUNÇÕES DE RELATÓRIO COMPLETO ---
   const handleGenerateSummary = async () => {
     setIsGeneratingSummary(true);
     const done = planningTasks.filter(t => t.completed).map(t => `${t.desc} (${t.duration})`).join(', ');
-    const prompt = `Relatório de obras concluídas: ${done}. Destaca a eficiência da equipa.`;
+    const prompt = `Relatório obras: ${done}.`;
     const text = await callGeminiText(prompt);
     if (text) setReportSummary(text);
     setIsGeneratingSummary(false);
@@ -380,12 +366,12 @@ function AdminApp({ onLogout, user }) {
                   </div>
                   <div className="col-span-2">
                       <div className="flex justify-between items-center">
-                          <label className="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-1"><Clock size={10}/> Duração Prevista</label>
+                          <label className="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-1"><Clock size={10}/> Duração</label>
                           <button onClick={() => handleEstimateTask(t)} disabled={estimatingTaskId === t.id} className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200 hover:bg-indigo-200 flex items-center gap-1">
-                            {estimatingTaskId === t.id ? <Loader2 size={10} className="animate-spin"/> : <Sparkles size={10}/>} IA: Calcular (Baseado na Equipa)
+                            {estimatingTaskId === t.id ? <Loader2 size={10} className="animate-spin"/> : <Sparkles size={10}/>} IA: Calcular
                           </button>
                       </div>
-                      <input type="text" placeholder="Ex: 2 dias" className="w-full bg-white border border-indigo-100 rounded p-1 text-sm mt-1 font-medium text-indigo-900" value={t.duration || ''} onChange={(e) => handleUpdateTask(t.id, 'duration', e.target.value)}/>
+                      <input type="text" placeholder="Tempo estimado..." className="w-full bg-white border border-indigo-100 rounded p-1 text-sm mt-1 font-medium text-indigo-900" value={t.duration || ''} onChange={(e) => handleUpdateTask(t.id, 'duration', e.target.value)}/>
                   </div>
                   <div className="col-span-2">
                       <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1"><Package size={10}/> Materiais</label>
