@@ -25,7 +25,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 const firebaseConfig = {
   apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
   authDomain: "manutencao-app.firebaseapp.com",
-  projectId: "manutencao-app", // <--- SE TIVER O ID REAL, COLOQUE AQUI
+  projectId: "manutencaoappcsm", // <--- SE TIVER O ID REAL, COLOQUE AQUI
   storageBucket: "manutencao-app.appspot.com"
 };
 
