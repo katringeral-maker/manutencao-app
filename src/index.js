@@ -9,8 +9,8 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, 
-  FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList, Save as SaveIcon
+  RefreshCw, // <--- ESTE ERA O ÍCONE QUE FALTAVA E BLOQUEAVA A ATUALIZAÇÃO
+  FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList
 } from 'lucide-react';
 
 // FIREBASE IMPORTS
@@ -22,11 +22,14 @@ import {
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 // --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
+// Corrigido com base na sua Imagem 3 (manutencaoappcsm)
 const firebaseConfig = {
-  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
-  authDomain: "manutencaoappcsm.firebaseapp.com",
-  projectId: "manutencaoappcsm",
-  storageBucket: "manutencaoappcsm.appspot.com"
+  apiKey: "AIzaSyAo6MPtHy6b-n0rKvZtuy_TCJPG8qye7oU", 
+  authDomain: "manutencaoappcsm.firebaseapp.com", 
+  projectId: "manutencaoappcsm", 
+  storageBucket: "manutencaoappcsm.firebasestorage.app",
+  messagingSenderId: "109430393454",
+  appId: "1:109430393454:web:f2a56b08e2ff9ad755f47f"
 };
 
 // Inicialização Segura
@@ -258,7 +261,7 @@ function AdminApp({ onLogout, user, setDbError }) {
               createdAt: new Date().toISOString()
           });
       } catch (e) {
-          alert("Erro ao criar tarefa. Verifique a ligação.");
+          alert("Erro ao criar tarefa. Tente novamente.");
           console.error(e);
       }
   };
@@ -526,7 +529,7 @@ function AdminApp({ onLogout, user, setDbError }) {
                 <div key={t.id} className="p-3 border rounded bg-white hover:bg-gray-50">
                     <div className="flex justify-between items-start"><div className="text-sm flex-1"><span className="px-1 rounded text-xs bg-gray-100">{t.cat}</span><p className="font-medium mt-1">{t.desc}</p><span className="text-xs text-gray-400">{t.date}</span></div><button onClick={() => handleRemoveTask(t.id)} className="text-gray-400 hover:text-red-500"><X className="w-4 h-4"/></button></div>
                     
-                    {/* ALTERAÇÃO AQUI: CAIXA DE TEXTO LIVRE EM VEZ DE SELECT */}
+                    {/* AQUI ESTÁ A MUDANÇA PARA CAIXA DE TEXTO LIVRE */}
                     <div className="mt-2 pt-2 border-t flex gap-2"><div className="flex-1"><input type="text" className="text-xs border rounded p-1 w-full mb-1" placeholder="Nome funcionário..." value={t.assignedTo || ''} onChange={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { assignedTo: e.target.value })} /></div></div>
 
                     {/* Botão AI e Inputs de Edição */}
@@ -707,31 +710,6 @@ function WorkerApp({ onLogout, user }) {
                     <h4 className="font-bold text-gray-800 text-lg leading-snug mb-3">{task.desc}</h4>
                     {task.initialPhoto && <div className="mb-3"><span className="text-[10px] text-gray-400 uppercase font-bold">Foto do Problema:</span><img src={task.initialPhoto} alt="Anomalia" className="h-24 w-full object-cover rounded-lg border border-gray-100 mt-1" /></div>}
                     {task.recommendation && <div className="mb-4 bg-amber-50 p-3 rounded-xl border border-amber-100 text-sm text-amber-800 flex gap-3 items-start"><AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" /><span className="leading-snug">{task.recommendation}</span></div>}
-                    
-                    {/* ÁREA DE OBSERVAÇÕES / DIÁRIO DE TRABALHO */}
-                    <div className="mt-3">
-                        <label className="text-xs font-bold text-gray-700 block mb-1 flex items-center gap-1"><Edit3 className="w-3 h-3"/> 📝 Diário de Trabalho (O que fez hoje / O que falta):</label>
-                        <div className="flex gap-2">
-                            <textarea 
-                                className="w-full text-sm border rounded p-2 h-20 resize-none focus:ring-2 focus:ring-indigo-500 focus:outline-none" 
-                                placeholder="Ex: Hoje abri roços. Falta passar o tubo..." 
-                                defaultValue={task.workerObservations || ''}
-                                id={`obs-${task.id}`}
-                            />
-                            <button 
-                                onClick={() => {
-                                    const val = document.getElementById(`obs-${task.id}`).value;
-                                    updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { workerObservations: val });
-                                    alert("Nota gravada!");
-                                }}
-                                className="bg-indigo-50 text-indigo-600 p-2 rounded hover:bg-indigo-100 flex flex-col items-center justify-center min-w-[60px]"
-                            >
-                                <SaveIcon className="w-5 h-5 mb-1"/>
-                                <span className="text-[10px] font-bold">Gravar</span>
-                            </button>
-                        </div>
-                    </div>
-
                     <div className="flex gap-3 mt-5">
                       <label className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer font-bold text-sm transition-all border ${uploading === task.id ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, task.id)} disabled={uploading === task.id} />{uploading === task.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}<span>{uploading === task.id ? 'A enviar...' : 'Foto & Feito'}</span></label><button onClick={() => handleCompleteTask(task.id, task.completed)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all"><CheckCircle2 className="w-5 h-5" /></button>
                     </div>
