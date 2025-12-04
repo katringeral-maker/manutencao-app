@@ -185,7 +185,7 @@ function LoginScreen({ onSelectRole }) {
           <div className="flex items-center gap-4"><div className="p-3 bg-emerald-500/20 rounded-xl group-hover:bg-emerald-500/30 transition-colors"><Hammer className="w-6 h-6 text-emerald-400" /></div><div className="text-left"><span className="block font-bold text-lg">Equipa Técnica</span><span className="text-sm text-emerald-200/70">Registo de trabalhos e fotos</span></div></div><ChevronRight className="w-5 h-5 text-white/50" />
         </button>
       </div>
-      <p className="mt-12 text-xs text-white/20">v3.4 Full Integrated System</p>
+      <p className="mt-12 text-xs text-white/20">v3.6 Full Integrated System</p>
     </div>
   );
 }
@@ -483,7 +483,26 @@ function AdminApp({ onLogout, user, setDbError }) {
                         <div className="flex items-center gap-3"><div className="p-2 bg-gray-100 rounded">{item.icon}</div><div><span className="font-medium block">{item.label}</span><span className="text-xs text-gray-400">{item.category}</span></div></div>
                         <div className="flex items-center gap-2"><label className={`p-2 rounded cursor-pointer border ${data.photo ? 'bg-blue-50 text-blue-600' : 'bg-white text-gray-400'}`}><input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(item.id, e)} /><Camera className="w-5 h-5" /></label><button onClick={() => handleCheck(item.id, 'ok')} className={`px-3 py-2 rounded border flex gap-2 ${data.status === 'ok' ? 'bg-emerald-500 text-white' : 'bg-white text-gray-400'}`}><CheckCircle2 className="w-5 h-5"/> OK</button><button onClick={() => handleCheck(item.id, 'nok')} className={`px-3 py-2 rounded border flex gap-2 ${data.status === 'nok' ? 'bg-red-500 text-white' : 'bg-white text-gray-400'}`}><XCircle className="w-5 h-5"/> Erro</button></div>
                       </div>
-                      {(isNok || data.photo) && (<div className="mt-4 pl-12 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">{data.photo && (<div className="col-span-2 relative group"><img src={data.photo} className="h-40 object-cover rounded border" alt="Anomalia" /><div className="absolute top-2 left-2 flex gap-2"><button onClick={() => setAuditData(p => ({...p, [key]: {...p[key], photo: null}}))} className="bg-red-500 text-white p-1 rounded opacity-80 hover:opacity-100"><Trash2 className="w-4 h-4" /></button>{isNok && (<button onClick={() => handleAnalyzePhoto(item.id, selectedBuilding.id, selectedZone)} disabled={isAnalyzing} className="bg-indigo-600 text-white px-3 py-1 rounded flex items-center gap-2 text-sm shadow-md hover:bg-indigo-700 disabled:opacity-50">{isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin"/> : <Sparkles className="w-4 h-4 text-yellow-300"/>}{isAnalyzing ? 'A Analisar...' : 'Analisar com IA'}</button>)}</div></div>)}{isNok && (<><div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 mb-1">Causas (IA ou Manual)</label><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Ex: Desgaste..." value={data.details?.causes || ''} onChange={(e) => handleDetailChange(item.id, 'causes', e.target.value)}/></div><div><label className="block text-xs font-semibold text-gray-500 mb-1 flex justify-between"><span>Medidas (IA ou Manual)</span><button onClick={() => handleGetRecommendationText(item.id, selectedBuilding.id, selectedZone, data.details?.causes)} className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-[10px] border px-1 rounded bg-indigo-50"><Sparkles className="w-3 h-3"/> Pedir Solução</button></label><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Ex: Substituir..." value={data.details?.measures || ''} onChange={(e) => handleDetailChange(item.id, 'measures', e.target.value)}/></div><div><label className="block text-xs font-semibold text-gray-500 mb-1">Previsão</label><input type="date" className="w-full p-2 border rounded text-sm" value={data.details?.forecast || ''} onChange={(e) => handleDetailChange(item.id, 'forecast', e.target.value)}/></div></>)}</div>)}
+                      {/* CORREÇÃO DO PROBLEMA DE COMPILAÇÃO AQUI */}
+                      {(isNok || data.photo) && (
+                        <div className="mt-4 pl-12 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
+                          {data.photo && (<div className="col-span-2 relative group"><img src={data.photo} className="h-40 object-cover rounded border" alt="Anomalia" /><div className="absolute top-2 left-2 flex gap-2"><button onClick={() => setAuditData(p => ({...p, [key]: {...p[key], photo: null}}))} className="bg-red-500 text-white p-1 rounded opacity-80 hover:opacity-100"><Trash2 className="w-4 h-4" /></button>{isNok && (<button onClick={() => handleAnalyzePhoto(item.id, selectedBuilding.id, selectedZone)} disabled={isAnalyzing} className="bg-indigo-600 text-white px-3 py-1 rounded flex items-center gap-2 text-sm shadow-md hover:bg-indigo-700 disabled:opacity-50">{isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin"/> : <Sparkles className="w-4 h-4 text-yellow-300"/>}{isAnalyzing ? 'A Analisar...' : 'Analisar com IA'}</button>)}</div></div>)}
+                          {isNok && (
+                            <>
+                                <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 mb-1">Causas (IA ou Manual)</label><input type="text" className="w-full p-2 border rounded text-sm" placeholder="Ex: Desgaste..." value={data.details?.causes || ''} onChange={(e) => handleDetailChange(item.id, 'causes', e.target.value)}/></div>
+                                <div>
+                                    {/* ETIQUETA CORRIGIDA: BOTÃO FORA DA LABEL */}
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="block text-xs font-semibold text-gray-500">Medidas (IA ou Manual)</label>
+                                        <button onClick={() => handleGetRecommendationText(item.id, selectedBuilding.id, selectedZone, data.details?.causes)} className="text-indigo-600 hover:text-indigo-800 flex items-center gap-1 text-[10px] border px-1 rounded bg-indigo-50"><Sparkles className="w-3 h-3"/> Pedir Solução</button>
+                                    </div>
+                                    <input type="text" className="w-full p-2 border rounded text-sm" placeholder="Ex: Substituir..." value={data.details?.measures || ''} onChange={(e) => handleDetailChange(item.id, 'measures', e.target.value)}/>
+                                </div>
+                                <div><label className="block text-xs font-semibold text-gray-500 mb-1">Previsão</label><input type="date" className="w-full p-2 border rounded text-sm" value={data.details?.forecast || ''} onChange={(e) => handleDetailChange(item.id, 'forecast', e.target.value)}/></div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -644,7 +663,7 @@ function AdminApp({ onLogout, user, setDbError }) {
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800 h-screen">
       <style>{`@media print { header, nav, aside, .print\\:hidden, .chat-widget { display: none !important; } #print-planning, #print-planning * { visibility: visible; } }`}</style>
       <div className="bg-white border-b px-4 pt-4 shadow-sm print:hidden">
-        <div className="flex items-center gap-2 font-bold text-xl text-emerald-800 mb-4"><ClipboardCheck className="w-6 h-6"/> Manutenção App 3.3 <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full ml-2 flex items-center gap-1"><Sparkles className="w-3 h-3"/> AI Powered</span></div>
+        <div className="flex items-center gap-2 font-bold text-xl text-emerald-800 mb-4"><ClipboardCheck className="w-6 h-6"/> Manutenção App 3.6 <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full ml-2 flex items-center gap-1"><Sparkles className="w-3 h-3"/> AI Powered</span></div>
         <div className="flex gap-6">{['inspection','planning','report'].map(v => <button key={v} onClick={() => setCurrentView(v)} className={`pb-3 px-2 border-b-2 capitalize ${currentView===v?'border-emerald-500 text-emerald-600':'border-transparent'}`}>{v === 'inspection' ? 'Vistoria' : v === 'planning' ? 'Planeamento' : 'Relatório'}</button>)}</div>
         <button onClick={onLogout} className="absolute top-4 right-4 bg-gray-100 hover:bg-gray-200 p-2 rounded-full"><LogOut className="w-5 h-5 text-gray-600"/></button>
       </div>
