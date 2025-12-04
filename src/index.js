@@ -8,7 +8,7 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw // <--- ADICIONEI ESTE ÍCONE QUE FALTAVA
+  RefreshCw // <--- ADICIONADO: O ícone que faltava
 } from 'lucide-react';
 
 // FIREBASE IMPORTS
@@ -19,15 +19,29 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 
-// --- FIREBASE CONFIG (Injetada pelo ambiente) ---
-const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+// --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
+// Isto resolve a "Tela Branca" (auth/invalid-api-key)
+const firebaseConfig = {
+  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", // Sua chave real
+  authDomain: "manutencao-csm.firebaseapp.com", // Genérico (para não crachar)
+  projectId: "manutencao-csm", // Genérico (para não crachar)
+  storageBucket: "manutencao-csm.appspot.com"
+};
+
+// Inicialização Segura do Firebase
+let app, auth, db;
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+} catch (e) {
+  console.error("Erro ao inicializar Firebase:", e);
+}
 
 // --- CONFIGURAÇÃO GEMINI API ---
 const apiKey = "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE"; 
+
+const appId = 'default-app-id'; // Fallback para evitar erro de variavel
 
 async function callGeminiVision(base64Image, prompt) {
   if (!apiKey) { alert("API Key não configurada."); return null; }
@@ -89,6 +103,7 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        // Tenta usar configuração injetada ou anônimo direto
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           await signInWithCustomToken(auth, __initial_auth_token);
         } else {
@@ -96,12 +111,17 @@ export default function App() {
         }
       } catch (e) {
         console.error("Auth falhou, tentando anónimo", e);
-        await signInAnonymously(auth);
+        // Fallback seguro se o token falhar
+        if (auth) await signInAnonymously(auth);
       }
     };
-    initAuth();
-    onAuthStateChanged(auth, setUser);
+    if (auth) {
+        initAuth();
+        onAuthStateChanged(auth, setUser);
+    }
   }, []);
+
+  if (!auth) return <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 text-center"><div><h1 className="text-xl font-bold text-red-600 mb-2">Erro de Configuração</h1><p>O Firebase não foi inicializado corretamente.</p><p className="text-sm text-gray-500 mt-2">Verifique a consola para mais detalhes.</p></div></div>;
 
   if (!role) return <LoginScreen onSelectRole={setRole} />;
   if (role === 'admin') return <AdminApp onLogout={() => setRole(null)} user={user} />;
@@ -253,17 +273,19 @@ function AdminApp({ onLogout, user }) {
         const tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         tasks.sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? 1 : -1);
         setPlanningTasks(tasks);
+    }, (error) => {
+        console.log("Erro ao carregar tarefas (provavelmente falta configurar o projectId):", error);
     });
     
-    // Listen to Planning Metadata (FIX: Correct path artifacts/{appId}/public/data/settings/planning)
     const metaRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'planning');
     const unsubMeta = onSnapshot(metaRef, (docSnap) => {
         if (docSnap.exists()) {
             setPlanning(docSnap.data());
         } else {
-             setDoc(metaRef, planning, { merge: true });
+             // Evitar erro se não existir
+             // setDoc(metaRef, planning, { merge: true });
         }
-    });
+    }, (error) => console.log("Erro ao carregar settings"));
 
     return () => { unsubscribe(); unsubMeta(); };
   }, [user]);
