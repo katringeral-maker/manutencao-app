@@ -20,13 +20,12 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-// --- CONFIGURAÇÃO FIREBASE ---
-// ⚠️ VERIFIQUE SE O projectId ESTÁ CORRETO NO SEU CONSOLE FIREBASE
+// --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
 const firebaseConfig = {
-  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
-  authDomain: "manutencao-app.firebaseapp.com",
-  projectId: "manutencaoappcsm", // <--- SE TIVER O ID REAL, COLOQUE AQUI
-  storageBucket: "manutencao-app.appspot.com"
+  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE",
+  authDomain: "manutencaoappcsm.firebaseapp.com",
+  projectId: "manutencaoappcsm",
+  storageBucket: "manutencaoappcsm.firebasestorage.app"
 };
 
 // Inicialização Segura
