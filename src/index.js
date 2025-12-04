@@ -20,10 +20,9 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-// --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
-// IMPORTANTE: Se continuar a dar erro "auth/invalid-api-key", confirme se esta chave está ativa no Google Cloud Console.
+// --- CONFIGURAÇÃO FIREBASE ---
 const firebaseConfig = {
-  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
+  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE",
   authDomain: "manutencao-app.firebaseapp.com",
   projectId: "manutencao-app",
   storageBucket: "manutencao-app.appspot.com"
@@ -36,14 +35,14 @@ try {
   auth = getAuth(app);
   db = getFirestore(app);
 } catch (e) {
-  console.error("Erro Crítico Firebase:", e);
+  console.error("Erro Firebase:", e);
 }
 
 // --- CONFIGURAÇÃO GEMINI API ---
 const apiKey = "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE"; 
 const appId = 'default-app-id'; 
 
-// Funções da IA (Modelo Flash 1.5)
+// Funções da IA
 async function callGeminiVision(base64Image, prompt) {
   if (!apiKey) { alert("API Key não configurada."); return null; }
   try {
@@ -103,13 +102,12 @@ function App() {
 
   useEffect(() => {
     if (auth) {
-        // Autenticação anónima para permitir acesso à DB
         signInAnonymously(auth).catch(e => console.error("Erro Auth:", e));
         onAuthStateChanged(auth, setUser);
     }
   }, []);
 
-  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">Erro: Configuração do Firebase não encontrada. Verifique o console.</div>;
+  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">Erro: Configuração do Firebase não encontrada.</div>;
 
   if (!role) return <LoginScreen onSelectRole={setRole} />;
   if (role === 'admin') return <AdminApp onLogout={() => setRole(null)} user={user} />;
@@ -183,7 +181,7 @@ function AdminApp({ onLogout, user }) {
   const [inspectionDate, setInspectionDate] = useState(new Date().toISOString().split('T')[0]); 
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]); 
   const [reportType, setReportType] = useState('weekly'); 
-  const [auditData, setAuditData] = useState({}); // Vistorias
+  const [auditData, setAuditData] = useState({}); // DADOS DA VISTORIA
   
   // States Auxiliares
   const [analyzingItem, setAnalyzingItem] = useState(null); 
@@ -213,7 +211,7 @@ function AdminApp({ onLogout, user }) {
   useEffect(() => {
     if (!user) return;
     
-    // 1. Ler Tarefas do Planeamento
+    // 1. LER TAREFAS DO PLANEAMENTO
     const tasksQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'));
     const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
         const tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -221,8 +219,7 @@ function AdminApp({ onLogout, user }) {
         setPlanningTasks(tasks);
     }, (err) => console.error("Erro a ler tarefas:", err));
 
-    // 2. Ler Dados da Vistoria (CORREÇÃO DE DADOS DESAPARECIDOS)
-    // Agora a vistoria também é salva na base de dados
+    // 2. LER VISTORIAS DO FIREBASE (PARA NÃO DESAPARECER)
     const inspectionRef = doc(db, 'artifacts', appId, 'public', 'data', 'inspection', 'current');
     const unsubscribeInspection = onSnapshot(inspectionRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -230,7 +227,7 @@ function AdminApp({ onLogout, user }) {
         }
     });
 
-    // 3. Ler Definições
+    // 3. LER DEFINIÇÕES
     const metaRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'planning');
     const unsubscribeMeta = onSnapshot(metaRef, (docSnap) => {
         if (docSnap.exists()) setPlanning(docSnap.data());
@@ -239,7 +236,7 @@ function AdminApp({ onLogout, user }) {
     return () => { unsubscribeTasks(); unsubscribeMeta(); unsubscribeInspection(); };
   }, [user]);
 
-  // Função para salvar Vistoria no Firestore (Auto-Save)
+  // --- FUNÇÃO PARA SALVAR VISTORIA NO FIREBASE (AUTO-SAVE) ---
   const saveInspectionToFirestore = async (newData) => {
       setAuditData(newData); // Atualiza localmente
       if(user) {
@@ -253,8 +250,8 @@ function AdminApp({ onLogout, user }) {
 
   const getAuditKey = (bid, zone, iid) => `${bid}-${zone}-${iid}`;
 
-  // --- FUNÇÕES DE VISTORIA (Correção Input Manual) ---
-  const handleCheck = (itemId, status) => { 
+  // --- FUNÇÕES DE VISTORIA ---
+  const handleCheck = async (itemId, status) => { 
       if (!selectedBuilding || !selectedZone) return;
       const key = getAuditKey(selectedBuilding.id, selectedZone, itemId);
       
@@ -267,6 +264,29 @@ function AdminApp({ onLogout, user }) {
 
       const newAuditData = { ...auditData, [key]: newItem };
       saveInspectionToFirestore(newAuditData);
+
+      // --- CRIAÇÃO AUTOMÁTICA DE TAREFA SE FOR ERRO (NOK) ---
+      if (status === 'nok') {
+          const building = selectedBuilding.name;
+          const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
+          const taskId = `auto_${key}`; // ID único
+
+          // Verifica se já existe para não duplicar
+          if (!planningTasks.find(t => t.originId === taskId)) {
+              try {
+                  await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+                      desc: `Reparar ${itemLabel} em ${building} - ${selectedZone}`, 
+                      cat: 'Vistoria', 
+                      date: inspectionDate, 
+                      originId: taskId, 
+                      completed: false, 
+                      recommendation: '', 
+                      assignedTo: 'Equipa Interna',
+                      createdAt: new Date().toISOString()
+                  });
+              } catch (e) { console.error("Erro ao criar tarefa automática:", e); }
+          }
+      }
   };
 
   const handleDetailChange = (itemId, field, value) => {
@@ -277,10 +297,7 @@ function AdminApp({ onLogout, user }) {
           ...auditData,
           [key]: {
               ...auditData[key],
-              details: {
-                  ...auditData[key].details,
-                  [field]: value
-              }
+              details: { ...auditData[key].details, [field]: value }
           }
       };
       saveInspectionToFirestore(newAuditData);
@@ -290,7 +307,6 @@ function AdminApp({ onLogout, user }) {
       const f = e.target.files[0]; 
       if (f) {
           const key = getAuditKey(selectedBuilding.id, selectedZone, itemId);
-          // Nota: Em produção real, deve-se fazer upload para Storage. Aqui usamos URL local temporário/base64
           const reader = new FileReader();
           reader.onloadend = () => {
               const newAuditData = { ...auditData, [key]: { ...auditData[key], photo: reader.result } };
@@ -299,38 +315,6 @@ function AdminApp({ onLogout, user }) {
           reader.readAsDataURL(f);
       }
   };
-
-  // --- SINCRONIZAÇÃO VISTORIA -> PLANEAMENTO (Correção Robusta) ---
-  useEffect(() => {
-    if (!user) return;
-    Object.entries(auditData).forEach(async ([key, value]) => {
-      if (value.status === 'nok' && !value.syncedToTasks) {
-        const [buildingId, zoneName, itemId] = key.split('-');
-        const building = BUILDINGS_DATA.find(b => b.id === buildingId)?.name;
-        const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
-        const taskId = `auto_${key}`;
-
-        if (!planningTasks.find(t => t.id === taskId || t.originId === taskId)) {
-            try {
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
-                    desc: `Reparar ${itemLabel} em ${building} - ${zoneName}`, 
-                    cat: 'Vistoria', 
-                    date: inspectionDate, 
-                    originId: taskId, 
-                    completed: false, 
-                    recommendation: `${value.details?.causes || ''} -> ${value.details?.measures || ''}`, 
-                    assignedTo: 'Equipa Interna',
-                    createdAt: new Date().toISOString()
-                });
-                
-                // Marca como sincronizado na base de dados
-                const newAuditData = { ...auditData, [key]: { ...value, syncedToTasks: true } };
-                saveInspectionToFirestore(newAuditData);
-            } catch (e) { console.error("Erro Sync:", e); }
-        }
-      }
-    });
-  }, [auditData, user, inspectionDate, planningTasks]);
 
   // --- FUNÇÕES DE PLANEAMENTO ---
   const updatePlanningMeta = async (newData) => {
@@ -357,15 +341,11 @@ function AdminApp({ onLogout, user }) {
   const handleRemoveTask = async (taskId) => { if (!user) return; try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId)); } catch (e) {} };
   const handleToggleTask = async (taskId, currentStatus) => { if (!user) return; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completed: !currentStatus }); } catch (e) {} };
 
-  // --- FUNÇÕES DA IA (Correção para Flash 1.5 e JSON) ---
+  // --- FUNÇÕES DA IA (Flash 1.5) ---
   const handleEstimateTaskDetails = async (task) => {
     setEstimatingTaskId(task.id);
     const staffCount = planning.teamType === 'internal' ? 'equipa interna atual' : 'empresa externa';
-    const prompt = `És um perito em manutenção. Tarefa: "${task.desc}". Baseado em ${staffCount}, estima: 
-    1. Tempo de execução (ex: "2 horas (2 pax)"). 
-    2. Materiais necessários e quantidades (ex: "5L Tinta Branca, 2 Rolos"). 
-    3. Medidas aproximadas (ex: "20m2"). 
-    Responde APENAS JSON puro: {"duration": "...", "materials": "...", "measures": "..."}`;
+    const prompt = `És um perito em manutenção. Tarefa: "${task.desc}". Baseado em ${staffCount}, estima: 1. Tempo de execução (ex: "2 horas (2 pax)"). 2. Materiais necessários e quantidades. 3. Medidas aproximadas. Responde APENAS JSON puro: {"duration": "...", "materials": "...", "measures": "..."}`;
     
     const resultText = await callGeminiText(prompt);
     if (resultText) { 
@@ -377,11 +357,7 @@ function AdminApp({ onLogout, user }) {
                 materials: result.materials,
                 measures: result.measures 
             }); 
-        } catch (e) { 
-            console.error("Erro JSON IA:", e); 
-            // Fallback se JSON falhar
-            alert("Erro ao processar resposta da IA. Tente novamente.");
-        } 
+        } catch (e) { alert("Erro ao processar resposta da IA. Tente novamente."); } 
     }
     setEstimatingTaskId(null);
   };
@@ -390,8 +366,6 @@ function AdminApp({ onLogout, user }) {
     const key = getAuditKey(buildingId, zoneName, itemId);
     const photoUrl = auditData[key]?.photo;
     if (!photoUrl) { alert("Adicione foto primeiro."); return; }
-    // Remover prefixo data:image para enviar apenas base64 puro se necessário, 
-    // mas a função callGeminiVision espera base64 puro
     const base64Data = photoUrl.split(',')[1];
 
     setAnalyzingItem(itemId);
