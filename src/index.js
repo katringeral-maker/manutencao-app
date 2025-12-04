@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 import React, { useState, useRef, useEffect } from 'react';
-// REMOVIDO: import { createRoot } from 'react-dom/client'; -> Causa conflito
+import { createRoot } from 'react-dom/client'; // ✅ Única importação necessária para React 18
 import { 
   ClipboardCheck, Building2, MapPin, CheckCircle2, XCircle, Save, 
   LayoutDashboard, ChevronRight, ChevronDown, Droplets, Lightbulb, 
@@ -106,7 +106,9 @@ export default function App() {
   useEffect(() => {
     if (auth) {
         signInAnonymously(auth)
-            .then(() => setDbError(null))
+            .then(() => {
+                setDbError(null);
+            })
             .catch(e => {
                 console.error("Erro Detalhado:", e);
                 setDbError(`ERRO: ${e.code} - ${e.message}. Verifique 'Authorized Domains' no Firebase.`);
@@ -186,7 +188,7 @@ function LoginScreen({ onSelectRole }) {
           <div className="flex items-center gap-4"><div className="p-3 bg-emerald-500/20 rounded-xl group-hover:bg-emerald-500/30 transition-colors"><Hammer className="w-6 h-6 text-emerald-400" /></div><div className="text-left"><span className="block font-bold text-lg">Equipa Técnica</span><span className="text-sm text-emerald-200/70">Registo de trabalhos e fotos</span></div></div><ChevronRight className="w-5 h-5 text-white/50" />
         </button>
       </div>
-      <p className="mt-12 text-xs text-white/20">v3.8 Full Integrated System</p>
+      <p className="mt-12 text-xs text-white/20">v3.14 Full Integrated System</p>
     </div>
   );
 }
@@ -662,7 +664,7 @@ function AdminApp({ onLogout, user, setDbError }) {
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800 h-screen">
       <style>{`@media print { header, nav, aside, .print\\:hidden, .chat-widget { display: none !important; } #print-planning, #print-planning * { visibility: visible; } }`}</style>
       <div className="bg-white border-b px-4 pt-4 shadow-sm print:hidden">
-        <div className="flex items-center gap-2 font-bold text-xl text-emerald-800 mb-4"><ClipboardCheck className="w-6 h-6"/> Manutenção App 3.8 <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full ml-2 flex items-center gap-1"><Sparkles className="w-3 h-3"/> AI Powered</span></div>
+        <div className="flex items-center gap-2 font-bold text-xl text-emerald-800 mb-4"><ClipboardCheck className="w-6 h-6"/> Manutenção App 3.13 <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full ml-2 flex items-center gap-1"><Sparkles className="w-3 h-3"/> AI Powered</span></div>
         <div className="flex gap-6">{['inspection','planning','report'].map(v => <button key={v} onClick={() => setCurrentView(v)} className={`pb-3 px-2 border-b-2 capitalize ${currentView===v?'border-emerald-500 text-emerald-600':'border-transparent'}`}>{v === 'inspection' ? 'Vistoria' : v === 'planning' ? 'Planeamento' : 'Relatório'}</button>)}</div>
         <button onClick={onLogout} className="absolute top-4 right-4 bg-gray-100 hover:bg-gray-200 p-2 rounded-full"><LogOut className="w-5 h-5 text-gray-600"/></button>
       </div>
@@ -678,159 +680,7 @@ function AdminApp({ onLogout, user, setDbError }) {
   );
 }
 
-// === WORKER APP (COM BOTÃO "EM CURSO") ===
-function WorkerApp({ onLogout, user }) {
-  const [selectedWorker, setSelectedWorker] = useState(localStorage.getItem('workerName') || '');
-  const [inputName, setInputName] = useState(''); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [uploading, setUploading] = useState(null); const [newTaskDesc, setNewTaskDesc] = useState(''); const [newTaskPhoto, setNewTaskPhoto] = useState(null); const [isReporting, setIsReporting] = useState(false); const [isImporting, setIsImporting] = useState(false);
-  const [showWorksheet, setShowWorksheet] = useState(false); 
-  
-  // NOVOS ESTADOS PARA O BOTAO EM CURSO
-  const [updatingTaskId, setUpdatingTaskId] = useState(null);
-  const [updateText, setUpdateText] = useState('');
-
-  useEffect(() => {
-    if (!user) return;
-    const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
-    const unsubscribe = onSnapshot(query(tasksRef), (snapshot) => {
-        const fetchedTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        fetchedTasks.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-        setTasks(fetchedTasks); setLoading(false);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  const handleLogin = () => { if (inputName.trim()) { const name = inputName.trim(); setSelectedWorker(name); localStorage.setItem('workerName', name); } };
-  const handleLogoutWorker = () => { setSelectedWorker(''); localStorage.removeItem('workerName'); setInputName(''); };
-  const handleNewTaskPhoto = (e) => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onloadend = () => setNewTaskPhoto(r.result); r.readAsDataURL(f); };
-  const handleReportTask = async () => { if (!newTaskDesc.trim() || !user) return; setIsReporting(true); try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: newTaskDesc, cat: 'Detetado em Obra', date: new Date().toISOString().split('T')[0], assignedTo: selectedWorker, completed: false, createdAt: new Date().toISOString(), initialPhoto: newTaskPhoto }); setNewTaskDesc(''); setNewTaskPhoto(null); alert("Tarefa reportada!"); } catch (e) { alert("Erro."); } setIsReporting(false); };
-  const handleCompleteTask = async (taskId, currentStatus) => { if (!user) return; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completed: !currentStatus, completedAt: !currentStatus ? new Date().toISOString() : null, completedBy: !currentStatus ? selectedWorker : null }); } catch (e) { alert("Erro."); } };
-  const handlePhotoUpload = async (e, taskId) => { const f = e.target.files[0]; if (!f) return; setUploading(taskId); const r = new FileReader(); r.onloadend = async () => { try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), { completionPhoto: r.result, completed: true, completedAt: new Date().toISOString(), completedBy: selectedWorker }); } catch (err) { alert("Erro."); } setUploading(null); }; r.readAsDataURL(f); };
-  const handleFileImport = (e) => { const f = e.target.files[0]; if (!f) return; setIsImporting(true); const r = new FileReader(); r.onload = async (event) => { const t = event.target.result; const l = t.split('\n'); let c = 0; for (let i=0; i<l.length; i++) { const line = l[i].trim(); if (!line) continue; const s = line.includes(';') ? ';' : ','; const cols = line.split(s); if (cols.length >= 2) { const desc = cols[1].trim().replace(/^"|"$/g, ''); if (desc) { try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { desc: desc, cat: cols[2]?.trim() || 'Geral', date: cols[0].trim() || new Date().toISOString().split('T')[0], assignedTo: 'Importado', completed: false, createdAt: new Date().toISOString() }); c++; } catch (err) {} } } } setIsImporting(false); alert(`${c} tarefas importadas!`); }; r.readAsText(f); };
-
-  // --- NOVA FUNÇÃO: GUARDAR ATUALIZAÇÃO DIÁRIA ---
-  const handleSaveUpdate = async (task) => {
-    if (!updateText.trim()) return;
-    const timestamp = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
-    const newEntry = `${timestamp} - ${selectedWorker}: ${updateText}`;
-    
-    // Adiciona ao texto existente ou cria novo
-    const currentObs = task.observations ? task.observations + '\n' + newEntry : newEntry;
-
-    try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), {
-        observations: currentObs,
-        lastUpdate: new Date().toISOString()
-      });
-      setUpdateText('');
-      setUpdatingTaskId(null);
-      alert("Atualização registada!");
-    } catch (e) {
-      alert("Erro ao guardar atualização.");
-    }
-  };
-
-  const myTasks = tasks.filter(t => { const a = t.assignedTo || ''; return a.toLowerCase().includes(selectedWorker.toLowerCase()) || a.toLowerCase().includes('equipa') || a.toLowerCase().includes('todos') || a.toLowerCase().includes('importado') || t.cat === 'Detetado em Obra'; });
-  const pendingTasks = myTasks.filter(t => !t.completed);
-  const today = new Date().toISOString().split('T')[0];
-  const completedTasks = myTasks.filter(t => t.completed && (t.date === today || t.completedAt?.startsWith(today)));
-
-  if (!selectedWorker) return <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col justify-center items-center font-sans"><div className="w-24 h-24 bg-emerald-500 rounded-3xl flex items-center justify-center mb-8 shadow-xl shadow-emerald-500/20"><User className="w-12 h-12 text-white" /></div><h1 className="text-3xl font-bold mb-3 text-center">Área do Trabalhador</h1><p className="text-gray-400 mb-8 text-center max-w-xs leading-relaxed">Regista a tua entrada.</p><div className="w-full max-w-sm space-y-4 bg-gray-800 p-6 rounded-2xl border border-gray-700"><div><label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block ml-1">O teu nome</label><input type="text" placeholder="Ex: João Silva" className="w-full p-4 bg-gray-900 border border-gray-600 rounded-xl text-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-white transition-all" value={inputName} onChange={(e) => setInputName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} /></div><button onClick={handleLogin} disabled={!inputName.trim()} className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white p-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2"><LogIn className="w-5 h-5" /> Entrar</button></div><button onClick={onLogout} className="mt-8 text-gray-500 hover:text-white text-sm">Voltar ao Menu Principal</button></div>;
-
-  return (
-    <div className="min-h-screen bg-gray-50 pb-24 font-sans">
-      <header className="bg-white border-b sticky top-0 z-10 px-5 py-4 shadow-sm flex justify-between items-center"><div><h2 className="font-bold text-xl text-gray-900 flex items-center gap-2">{selectedWorker}</h2><div className="flex items-center gap-2 mt-1"><span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span><p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">Online</p></div></div><div className="flex gap-2"><button onClick={() => setShowWorksheet(true)} className="p-2 bg-indigo-50 rounded-xl text-indigo-600 hover:bg-indigo-100 transition-colors flex items-center gap-2"><FileText className="w-5 h-5"/><span className="hidden md:inline text-xs font-bold">Folha Obra</span></button><label className="p-2 bg-blue-50 rounded-xl text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer flex items-center justify-center"><input type="file" accept=".csv,.txt" className="hidden" onChange={handleFileImport} disabled={isImporting} />{isImporting ? <RefreshCw className="w-5 h-5 animate-spin"/> : <UploadCloud className="w-5 h-5" />}</label><button onClick={handleLogoutWorker} className="p-2 bg-gray-100 rounded-xl text-gray-500 hover:bg-red-50 transition-colors"><LogOut className="w-5 h-5" /></button></div></header>
-      
-      {/* MODAL FOLHA DE OBRA */}
-      {showWorksheet && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-                <div className="bg-indigo-600 text-white p-4 flex justify-between items-center"><h2 className="font-bold text-lg flex items-center gap-2"><ClipboardList className="w-5 h-5"/> Folha de Obra Diária</h2><button onClick={() => setShowWorksheet(false)}><X className="w-6 h-6"/></button></div>
-                <div className="p-6 overflow-y-auto flex-1 space-y-6">
-                    <div className="text-center border-b pb-4"><h3 className="text-2xl font-bold text-gray-800">{selectedWorker}</h3><p className="text-gray-500">{new Date().toLocaleDateString('pt-PT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p></div>
-                    
-                    <div><h4 className="font-bold text-emerald-600 mb-2 border-b border-emerald-100 pb-1">✅ Tarefas Concluídas Hoje</h4>
-                    {completedTasks.length === 0 ? <p className="text-gray-400 italic text-sm">Nenhuma tarefa concluída hoje.</p> : (
-                        <ul className="space-y-2">{completedTasks.map(t => (<li key={t.id} className="text-sm bg-gray-50 p-2 rounded border border-gray-100"><span className="font-bold text-gray-700">{t.desc}</span>{t.workerObservations && <div className="text-xs text-gray-500 italic mt-1">Obs: {t.workerObservations}</div>}</li>))}</ul>
-                    )}</div>
-
-                    <div><h4 className="font-bold text-blue-600 mb-2 border-b border-blue-100 pb-1">🚧 Ocorrências Reportadas</h4>
-                    {tasks.filter(t => t.cat === 'Detetado em Obra' && t.date === today && t.assignedTo === selectedWorker).length === 0 ? <p className="text-gray-400 italic text-sm">Nenhuma ocorrência reportada hoje.</p> : (
-                        <ul className="space-y-2">{tasks.filter(t => t.cat === 'Detetado em Obra' && t.date === today && t.assignedTo === selectedWorker).map(t => (<li key={t.id} className="text-sm bg-blue-50 p-2 rounded border border-blue-100"><span className="font-bold text-gray-700">{t.desc}</span></li>))}</ul>
-                    )}</div>
-
-                    <div className="border-t pt-4 mt-4"><div className="flex justify-between items-end"><div className="text-xs text-gray-400">Assinatura Digital<br/>{new Date().toLocaleTimeString()}</div><div className="h-10 w-32 border-b border-gray-300"></div></div></div>
-                </div>
-                <div className="p-4 bg-gray-50 border-t flex justify-end"><button onClick={() => window.print()} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-indigo-700"><Printer className="w-4 h-4"/> Imprimir Folha</button></div>
-            </div>
-        </div>
-      )}
-
-      <main className="p-5 max-w-md mx-auto space-y-6">
-        <div className="grid grid-cols-2 gap-4"><div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center"><span className="text-3xl font-bold text-blue-600 mb-1">{pendingTasks.length}</span><span className="text-xs font-medium text-gray-400 uppercase tracking-wide">A Fazer</span></div><div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center"><span className="text-3xl font-bold text-emerald-600 mb-1">{completedTasks.length}</span><span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Feitas Hoje</span></div></div>
-        <div className="bg-white p-4 rounded-2xl border border-emerald-100 shadow-sm ring-4 ring-emerald-50/50"><h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2 text-sm uppercase tracking-wide"><Plus className="w-4 h-4 text-emerald-600" /> Detetou algo novo?</h3><div className="flex flex-col gap-3"><input type="text" value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)} placeholder="Ex: Lâmpada fundida no corredor..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all" /><div className="flex gap-2"><label className={`flex-1 p-3 rounded-xl border flex items-center justify-center gap-2 cursor-pointer transition-all ${newTaskPhoto ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'}`}><input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleNewTaskPhoto} />{newTaskPhoto ? <><CheckCircle2 className="w-4 h-4"/> Foto OK</> : <><Camera className="w-4 h-4"/> Tirar Foto</>}</label><button onClick={handleReportTask} disabled={!newTaskDesc.trim() || isReporting} className="flex-[2] bg-gray-900 text-white p-3 rounded-xl hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg flex items-center justify-center gap-2">{isReporting ? <RefreshCw className="w-4 h-4 animate-spin"/> : <Send className="w-4 h-4" />} Reportar</button></div>{newTaskPhoto && (<div className="relative mt-1"><img src={newTaskPhoto} alt="Preview" className="h-32 w-full object-cover rounded-xl border border-gray-200" /><button onClick={() => setNewTaskPhoto(null)} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full shadow-lg"><X className="w-4 h-4"/></button></div>)}</div></div>
-        <div><div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-800 flex items-center gap-2 text-lg"><Briefcase className="w-5 h-5 text-emerald-600" /> A Tua Lista</h3></div>
-          {loading ? <div className="flex justify-center p-10"><RefreshCw className="w-8 h-8 animate-spin text-emerald-500"/></div> : pendingTasks.length === 0 ? <div className="bg-white p-10 rounded-3xl text-center border-2 border-dashed border-gray-200 flex flex-col items-center"><div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-4"><CheckCircle2 className="w-8 h-8 text-emerald-400" /></div><h4 className="text-gray-800 font-bold mb-1">Tudo limpo!</h4><p className="text-gray-400 text-sm">Bom trabalho, não tens tarefas pendentes.</p></div> : (
-            <div className="space-y-4">
-              {pendingTasks.map(task => (
-                <div key={task.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden">
-                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${task.cat === 'Vistoria' ? 'bg-amber-500' : task.cat === 'Detetado em Obra' ? 'bg-purple-500' : 'bg-blue-500'}`}></div>
-                  <div className="ml-2">
-                    <div className="flex justify-between items-start mb-3"><span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${task.cat === 'Vistoria' ? 'bg-amber-50 text-amber-700' : task.cat === 'Detetado em Obra' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>{task.cat}</span>{task.assignedTo && <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md flex items-center gap-1"><User className="w-3 h-3"/> {task.assignedTo}</span>}</div>
-                    <h4 className="font-bold text-gray-800 text-lg leading-snug mb-3">{task.desc}</h4>
-                    {task.initialPhoto && <div className="mb-3"><span className="text-[10px] text-gray-400 uppercase font-bold">Foto do Problema:</span><img src={task.initialPhoto} alt="Anomalia" className="h-24 w-full object-cover rounded-lg border border-gray-100 mt-1" /></div>}
-                    {task.recommendation && <div className="mb-4 bg-amber-50 p-3 rounded-xl border border-amber-100 text-sm text-amber-800 flex gap-3 items-start"><AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" /><span className="leading-snug">{task.recommendation}</span></div>}
-                    
-                    {/* ZONA DE INPUT "EM CURSO" */}
-                    {updatingTaskId === task.id ? (
-                      <div className="mb-4 p-3 bg-yellow-50 rounded-xl border border-yellow-200 animate-in fade-in">
-                        <label className="text-xs font-bold text-yellow-800 mb-1 block">Motivo / Ponto de Situação:</label>
-                        <textarea 
-                          className="w-full p-2 border rounded text-sm mb-2" 
-                          rows={2} 
-                          placeholder="Ex: Terminei a parte elétrica, falta pintar..."
-                          value={updateText}
-                          onChange={(e) => setUpdateText(e.target.value)}
-                          autoFocus
-                        />
-                        <div className="flex gap-2">
-                          <button onClick={() => setUpdatingTaskId(null)} className="px-3 py-1 bg-white border rounded text-gray-500 text-sm">Cancelar</button>
-                          <button onClick={() => handleSaveUpdate(task)} className="px-3 py-1 bg-yellow-500 text-white rounded text-sm font-bold flex-1">Guardar Atualização</button>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {/* MOSTRAR OBSERVAÇÕES ANTERIORES */}
-                    {task.observations && (
-                      <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-600 font-mono whitespace-pre-wrap">
-                        <strong className="block text-gray-400 mb-1">Histórico:</strong>
-                        {task.observations}
-                      </div>
-                    )}
-
-                    <div className="flex gap-3 mt-5">
-                      {/* BOTÃO EM CURSO */}
-                      <button 
-                        onClick={() => { setUpdatingTaskId(task.id); setUpdateText(''); }}
-                        className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 py-3 px-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold text-[10px] transition-all border border-yellow-200 w-20"
-                      >
-                        <Clock className="w-5 h-5" />
-                        <span>Em Curso</span>
-                      </button>
-
-                      <label className={`flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 cursor-pointer font-bold text-sm transition-all border ${uploading === task.id ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}><input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, task.id)} disabled={uploading === task.id} />{uploading === task.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}<span>{uploading === task.id ? 'A enviar...' : 'Foto & Feito'}</span></label>
-                      <button onClick={() => handleCompleteTask(task.id, task.completed)} className="bg-gray-100 hover:bg-gray-200 text-gray-600 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all"><CheckCircle2 className="w-5 h-5" /></button>
-                    </div>
-                  </div>
-                  {(task.duration || task.materials) && (<div className="ml-2 mt-3 pt-3 border-t border-gray-100 flex gap-4 text-xs text-gray-500">{task.duration && <div className="flex items-center gap-1"><Clock className="w-3 h-3"/> {task.duration}</div>}{task.materials && <div className="flex items-center gap-1"><Package className="w-3 h-3"/> {task.materials}</div>}</div>)}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        {completedTasks.length > 0 && (
-          <div className="pt-6 border-t border-gray-100"><h3 className="font-bold text-gray-400 text-xs uppercase tracking-wider mb-4 pl-1">Concluídas Hoje</h3><div className="space-y-3">{completedTasks.map(task => (<div key={task.id} className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex justify-between items-center opacity-70"><div className="flex items-center gap-3 overflow-hidden"><div className="bg-emerald-100 p-1.5 rounded-full flex-shrink-0"><CheckCircle2 className="w-4 h-4 text-emerald-600" /></div><span className="text-gray-600 line-through text-sm truncate">{task.desc}</span></div>{task.completionPhoto && <div className="bg-white p-1 rounded border"><ImageIcon size={14} className="text-gray-400" /></div>}</div>))}</div></div>
-        )}
-      </main>
-    </div>
-  );
-}
+// === MONTAGEM DO APP (MODO AUTOMÁTICO) ===
+// A inicialização manual com ReactDOM foi removida para evitar conflitos com React 18.
+// O sistema de build injeta a raiz automaticamente.
+export { App };
