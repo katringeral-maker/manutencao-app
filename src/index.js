@@ -9,7 +9,7 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, // <--- ÍCONE QUE FALTAVA E BLOQUEAVA O BUILD
+  RefreshCw, 
   FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList
 } from 'lucide-react';
 
@@ -22,14 +22,11 @@ import {
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 // --- CONFIGURAÇÃO MANUAL DO FIREBASE ---
-// DADOS COPIADOS DA SUA IMAGEM (image_682f22.jpg)
 const firebaseConfig = {
-  apiKey: "AIzaSyAo6MPtHy6b-n0rKvZtuy_TCJPG8qye7oU", 
+  apiKey: "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE", 
   authDomain: "manutencaoappcsm.firebaseapp.com",
   projectId: "manutencaoappcsm",
-  storageBucket: "manutencaoappcsm.firebasestorage.app",
-  messagingSenderId: "109430393454",
-  appId: "1:109430393454:web:f2a56b08e2ff9ad755f47f"
+  storageBucket: "manutencaoappcsm.appspot.com"
 };
 
 // Inicialização Segura
@@ -43,7 +40,6 @@ try {
 }
 
 // --- CONFIGURAÇÃO GEMINI API ---
-// Mantenho a chave que me enviou antes para a IA
 const apiKey = "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE"; 
 const appId = 'default-app-id'; 
 
@@ -112,7 +108,7 @@ function App() {
             .then(() => setDbError(null))
             .catch(e => {
                 console.error("Erro Auth:", e);
-                setDbError("Erro de Autenticação. Verifique se a Auth Anónima está ativa no Firebase.");
+                setDbError("Erro de Autenticação. Tente recarregar a página.");
             });
         onAuthStateChanged(auth, setUser);
     }
@@ -226,7 +222,7 @@ function AdminApp({ onLogout, user, setDbError }) {
   useEffect(() => {
     if (!user) return;
     
-    // Ler Tarefas
+    // Ler Tarefas com Ordem
     const tasksQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('date', 'desc'));
     const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
         const tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -234,8 +230,7 @@ function AdminApp({ onLogout, user, setDbError }) {
         setDbError(null);
     }, (err) => {
         console.error("Erro Tasks:", err);
-        if (err.code === 'permission-denied') setDbError("Erro de Permissão. Verifique regras do Firestore.");
-        else setDbError("Erro ao ligar à base de dados.");
+        setDbError("Erro ao ler tarefas: Base de dados não encontrada ou permissões insuficientes.");
     });
 
     // Ler Vistorias
@@ -253,6 +248,7 @@ function AdminApp({ onLogout, user, setDbError }) {
     return () => { unsubscribeTasks(); unsubscribeMeta(); unsubscribeInspection(); };
   }, [user]);
 
+  // Função Auxiliar para criar tarefa
   const createPlanningTask = async (taskData) => {
       try {
           await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
@@ -261,7 +257,10 @@ function AdminApp({ onLogout, user, setDbError }) {
               completed: false,
               createdAt: new Date().toISOString()
           });
-      } catch (e) { alert("Erro ao criar tarefa. Tente novamente."); console.error(e); }
+      } catch (e) {
+          alert("Erro ao criar tarefa. Tente novamente.");
+          console.error(e);
+      }
   };
 
   const saveInspectionToFirestore = async (newData) => {
@@ -291,30 +290,26 @@ function AdminApp({ onLogout, user, setDbError }) {
   const handleCheck = async (itemId, status) => { 
       if (!selectedBuilding || !selectedZone) return;
       const key = getAuditKey(selectedBuilding.id, selectedZone, itemId);
+      
       const newItem = { 
-          ...auditData[key], status: status, date: inspectionDate, 
+          ...auditData[key], 
+          status: status, 
+          date: inspectionDate, 
           details: auditData[key]?.details || (status === 'nok' ? { causes: '', measures: '', forecast: '' } : null)
       };
+
       const newAuditData = { ...auditData, [key]: newItem };
       saveInspectionToFirestore(newAuditData);
 
+      // --- CRIAÇÃO IMEDIATA DE TAREFA ---
       if (status === 'nok') {
           const itemLabel = CHECKLIST_ITEMS.find(i => i.id === itemId)?.label;
-          // Verifica se já criámos esta tarefa HOJE para não duplicar infinitamente ao clicar
-          const todayStr = new Date().toISOString().split('T')[0];
-          const uniqueId = `auto_${key}_${todayStr}`;
-          
-          // Só cria se ainda não existir localmente uma com este ID
-          const alreadyExists = planningTasks.find(t => t.originId === uniqueId);
-          
-          if (!alreadyExists) {
-            createPlanningTask({
-                desc: `Reparar ${itemLabel} em ${selectedBuilding.name} - ${selectedZone}`,
-                cat: 'Vistoria',
-                date: inspectionDate,
-                originId: uniqueId
-            });
-          }
+          createPlanningTask({
+              desc: `Reparar ${itemLabel} em ${selectedBuilding.name} - ${selectedZone}`,
+              cat: 'Vistoria',
+              date: inspectionDate,
+              originId: `auto_${key}_${Date.now()}` // ID único garantido
+          });
       }
   };
 
@@ -530,7 +525,10 @@ function AdminApp({ onLogout, user, setDbError }) {
             {planningTasks.map(t => (
                 <div key={t.id} className="p-3 border rounded bg-white hover:bg-gray-50">
                     <div className="flex justify-between items-start"><div className="text-sm flex-1"><span className="px-1 rounded text-xs bg-gray-100">{t.cat}</span><p className="font-medium mt-1">{t.desc}</p><span className="text-xs text-gray-400">{t.date}</span></div><button onClick={() => handleRemoveTask(t.id)} className="text-gray-400 hover:text-red-500"><X className="w-4 h-4"/></button></div>
-                    <div className="mt-2 pt-2 border-t flex gap-2"><div className="flex-1"><select className="text-xs border rounded p-1 w-full mb-1" value={t.assignedTo || ''} onChange={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { assignedTo: e.target.value })}><option value="Equipa Interna">Equipa Interna</option><option value="João">João</option><option value="Maria">Maria</option><option value="Carlos">Carlos</option><option value="Empresa Externa">Empresa Externa</option></select></div></div>
+                    
+                    {/* ALTERAÇÃO AQUI: CAIXA DE TEXTO LIVRE EM VEZ DE SELECT */}
+                    <div className="mt-2 pt-2 border-t flex gap-2"><div className="flex-1"><input type="text" className="text-xs border rounded p-1 w-full mb-1" placeholder="Nome do funcionário ou equipa..." value={t.assignedTo || ''} onChange={(e) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', t.id), { assignedTo: e.target.value })} /></div></div>
+
                     {/* Botão AI e Inputs de Edição */}
                     <div className="mt-1 grid grid-cols-2 gap-2 relative">
                         <button onClick={() => handleEstimateTaskDetails(t)} disabled={estimatingTaskId === t.id} className="absolute -top-2 right-0 bg-indigo-50 text-indigo-600 p-1 rounded-full hover:bg-indigo-100 shadow-sm" title="IA: Calcular Tempo, Material e Medidas">{estimatingTaskId === t.id ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}</button>
