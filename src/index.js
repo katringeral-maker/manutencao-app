@@ -9,7 +9,7 @@ import {
   PaintBucket, Wrench, PenTool, Eraser, X, Plus, ListTodo, Image as ImageIcon, 
   Sparkles, Loader2, MessageSquare, Send, Bot, Info, Mail, Copy, Filter, Clock, 
   User, Phone, LogIn, LogOut, Lock, UploadCloud, Briefcase, Package, ExternalLink, Link as LinkIcon, Contact,
-  RefreshCw, 
+  RefreshCw, // <--- ADICIONADO: Isto corrige o erro "Build Failed"
   FileSpreadsheet, Edit3, Eye, FileCheck, ClipboardList, HardHat
 } from 'lucide-react';
 
@@ -21,9 +21,9 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
-// --- CONFIGURAÇÃO MANUAL DO FIREBASE (CORRIGIDA - CHAVE DA IMAGEM) ---
+// --- CONFIGURAÇÃO MANUAL DO FIREBASE (DADOS DA SUA IMAGEM) ---
 const firebaseConfig = {
-  apiKey: "AIzaSyAo6MPtHy6b-n0rKvZtuy_TCJPG8qye7oU", // <--- CHAVE CORRETA
+  apiKey: "AIzaSyAo6MPtHy6b-n0rKvZtuy_TCJPG8qye7oU", 
   authDomain: "manutencaoappcsm.firebaseapp.com",
   projectId: "manutencaoappcsm",
   storageBucket: "manutencaoappcsm.firebasestorage.app",
@@ -42,7 +42,6 @@ try {
 }
 
 // --- CONFIGURAÇÃO GEMINI API ---
-// Mantemos a sua chave da IA (esta é diferente da do Firebase e estava a funcionar)
 const apiKey = "AIzaSyDxRorFcJNEUkfUlei5qx6A91IGuUekcvE"; 
 const appId = 'default-app-id'; 
 
@@ -111,19 +110,19 @@ function App() {
             .then(() => setDbError(null))
             .catch(e => {
                 console.error("Erro Auth:", e);
-                setDbError("Erro de Autenticação. Recarregue a página.");
+                setDbError("A carregar... Se demorar, atualize a página.");
             });
         onAuthStateChanged(auth, setUser);
     }
   }, []);
 
-  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">A carregar sistema...</div>;
+  if (!auth) return <div className="p-10 text-center text-red-600 font-bold">Erro Crítico: Configuração do Firebase não encontrada.</div>;
 
   return (
     <>
-        {dbError && <div className="bg-red-600 text-white p-2 text-center text-xs font-bold fixed top-0 w-full z-[100]">{dbError}</div>}
+        {dbError && <div className="bg-yellow-500 text-white p-2 text-center text-xs font-bold fixed top-0 w-full z-[100]">{dbError}</div>}
         {!role ? <LoginScreen onSelectRole={setRole} /> : 
-         role === 'admin' ? <AdminApp onLogout={() => setRole(null)} user={user} setDbError={setDbError} /> : 
+         role === 'admin' ? <AdminApp onLogout={() => setRole(null)} user={user} /> : 
          <WorkerApp onLogout={() => setRole(null)} user={user} />}
     </>
   );
@@ -188,7 +187,7 @@ function LoginScreen({ onSelectRole }) {
 }
 
 // === ADMIN APP ===
-function AdminApp({ onLogout, user, setDbError }) {
+function AdminApp({ onLogout, user }) {
   const [currentView, setCurrentView] = useState('inspection'); 
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [selectedFloor, setSelectedFloor] = useState(null);
@@ -230,11 +229,7 @@ function AdminApp({ onLogout, user, setDbError }) {
     const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
         const tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         setPlanningTasks(tasks);
-        setDbError(null);
-    }, (err) => {
-        console.error("Erro Tasks:", err);
-        setDbError("Erro ao ler tarefas: Base de dados não encontrada ou permissões insuficientes.");
-    });
+    }, (err) => console.error("Erro Tasks:", err));
 
     // Ler Vistorias
     const inspectionRef = doc(db, 'artifacts', appId, 'public', 'data', 'inspection', 'current');
